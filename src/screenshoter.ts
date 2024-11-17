@@ -6,44 +6,84 @@ const DEFAULT_MOUSE_DOWN_FUNC = (_e: MouseEvent) => { };
 
 export class Screenshoter {
 
-  private mouseMoving = (_e: MouseEvent) => { };
+  private mouseMoving = DEFAULT_MOUSE_DOWN_FUNC;
 
-  private mouseUp = (_e: MouseEvent) => { };
+  private mouseUp = DEFAULT_MOUSE_DOWN_FUNC;
 
-  private resizerPosX: number = 0;
+  private resizerPosX = 0;
 
-  private resizerPosY: number = 0;
+  private resizerPosY = 0;
 
-  private startX: number = 0;
+  private startX = 0;
 
-  private startY: number = 0;
+  private startY = 0;
 
-  private movingX: number = 0;
+  private movingX = 0;
 
-  private movingY: number = 0;
+  private movingY = 0;
 
-  private width: number = 0;
+  private width = 0;
 
-  private height: number = 0;
+  private height = 0;
 
-  private maxLeft: number = 0;
+  private maxLeft = 0;
 
-  private minLeft: number = 0;
+  private minLeft = 0;
 
-  private maxTop: number = 0;
+  private maxTop = 0;
 
-  private minTop: number = 0;
+  private minTop = 0;
 
   // 正在激活的
   private activeResizer = 'none';
 
-  private mask: HTMLCanvasElement | undefined;
+  private mask?: HTMLCanvasElement;
 
-  private fabricWrapperEl: HTMLDivElement | undefined;
+  private maskLeft = 0;
+
+  private maskTop = 0;
+
+  private fabricWrapperEl?: HTMLDivElement;
 
   private imageEditor?: ImageEditor;
 
   private elementManager?: ElementManager;
+
+  private clipArea = { startX: 0, startY: 0, width: 0, height: 0 }
+
+  private dragger = {
+    isClipAreaInDrag: false,
+    startX: 0,
+    startY: 0,
+    width: 0,
+    height: 0,
+    // 记录鼠标一开始落在的位置
+    pointerDownX: 0,
+    pointerDownY: 0,
+
+    // 做临时变量用，拖拽结束的时候需要用到
+    currentX: 0,
+    currentY: 0,
+  }
+
+  private dragRecord: Record<string, any> = {
+    northWestTop: 0,
+    northWestLeft: 0,
+    northTop: 0,
+    northLeft: 0,
+    northEastTop: 0,
+    northEastLeft: 0,
+    eastTop: 0,
+    eastLeft: 0,
+    southTop: 0,
+    southLeft: 0,
+    southWestTop: 0,
+    southWestLeft: 0,
+    westTop: 0,
+    westLeft: 0
+  }
+
+  private cursorInClipArea = false;
 
   private screenshotResizer: {
     northWest: HTMLDivElement,
@@ -71,6 +111,10 @@ export class Screenshoter {
   private mosueDownSouth = DEFAULT_MOUSE_DOWN_FUNC;
   private mouseDownSouthWest = DEFAULT_MOUSE_DOWN_FUNC;
   private mouseDownWest = DEFAULT_MOUSE_DOWN_FUNC;
+
+  private canvasMouseDownFunc = DEFAULT_MOUSE_DOWN_FUNC;
+  private canvasMouseMoveFunc = DEFAULT_MOUSE_DOWN_FUNC;
+  private canvasMouseUpFunc = DEFAULT_MOUSE_DOWN_FUNC;
 
   init(imageEditor: ImageEditor, manager: ElementManager) {
     this.elementManager = manager;
@@ -118,23 +162,6 @@ export class Screenshoter {
     that.mouseDownWest = (e: MouseEvent) => { recordResizer('west', resizer.west.style, e) }
     this.screenshotResizer.west.addEventListener('pointerdown', this.mouseDownWest);
 
-    document.removeEventListener('pointermove', this.mouseMoving);
-    document.removeEventListener('pointerup', this.mouseUp);
-
-    this.mouseMoving = (e: MouseEvent) => {
-      if (that.activeResizer != 'none') {
-        that.movingX = e.pageX;
-        that.movingY = e.pageY;
-        that.resizeArea();
-      }
-    };
-    document.addEventListener('pointermove', this.mouseMoving);
-
-    this.mouseUp = () => {
-      that.activeResizer = 'none';
-    }
-
-    document.addEventListener('pointerup', this.mouseUp);
     this.cancel.removeEventListener('click', this.cancelFunc);
     this.confirm.removeEventListener('click', this.confirmFunc);
 
@@ -145,10 +172,132 @@ export class Screenshoter {
     this.confirm.addEventListener('click', this.confirmFunc);
   }
 
-  async confirmScreenshot() {
+  handleDragArea() {
 
-    const storeState = this.imageEditor!.storeCanvasState();
+    const canvas = this.mask!;
 
+    canvas.removeEventListener('mousemove', this.canvasMouseMoveFunc);
+    canvas.removeEventListener('mousedown', this.canvasMouseDownFunc);
+    document.removeEventListener('mouseup', this.canvasMouseUpFunc);
+
+    this.canvasMouseMoveFunc = (event: MouseEvent) => {
+
+      const clipArea = this.clipArea;
+
+      const xRange = [clipArea.startX, clipArea.startX + clipArea.width];
+      const yRange = [clipArea.startY, clipArea.startY + clipArea.height];
+
+      const currentX = Math.round(event.pageX - this.maskLeft);
+      const currentY = Math.round(event.pageY - this.maskTop);
+
+      const xInRange = currentX >= xRange[0] && currentX <= xRange[1];
+      const yInRange = currentY >= yRange[0] && currentY <= yRange[1];
+
+      const currentCursor = canvas.style.cursor;
+
+      this.cursorInClipArea = xInRange && yInRange;
+
+      if (xInRange && yInRange && currentCursor != 'move') {
+        canvas.style.cursor = 'move';
+      } else if ((!xInRange || !yInRange) && currentCursor != 'default' && !this.dragger.isClipAreaInDrag) {
+        canvas.style.cursor = 'default';
+      }
+
+      if (this.dragger.isClipAreaInDrag) {
+        const x = event.pageX;
+        const y = event.pageY;
+
+        let changeX = x - this.dragger.pointerDownX;
+        let changeY = y - this.dragger.pointerDownY;
+
+        if (changeX + clipArea.startX < 0) {
+          changeX = -clipArea.startX;
+        } else if (clipArea.startX + changeX + clipArea.width > this.width) {
+          changeX = this.width - clipArea.width - clipArea.startX;
+        }
+
+        if (changeY + clipArea.startY < 0) {
+          changeY = -clipArea.startY;
+        } else if (clipArea.startY + changeY + clipArea.height > this.height) {
+          changeY = this.height - clipArea.height - clipArea.startY;
+        }
+
+        this.transferClipArea(changeX, changeY);
+
+        this.adjustToolbarPosition();
+      }
+    }
+
+    this.canvasMouseDownFunc = (event: MouseEvent) => {
+      if (this.cursorInClipArea === false) {
+        return;
+      }
+
+      this.dragger.isClipAreaInDrag = true;
+      this.dragger.pointerDownX = event.pageX;
+      this.dragger.pointerDownY = event.pageY;
+
+      const resizers = this.screenshotResizer!
+      Object.entries(resizers).forEach((value) => {
+        const eleName = value[0];
+        const ele = value[1];
+
+        this.dragRecord[eleName + 'Left'] = pxielToNumber(ele.style.left);
+        this.dragRecord[eleName + 'Top'] = pxielToNumber(ele.style.top);
+      })
+
+      this.dragger.height = this.clipArea.height;
+      this.dragger.width = this.clipArea.width;
+      this.dragger.startX = this.clipArea.startX;
+      this.dragger.startY = this.clipArea.startY;
+    }
+
+    this.canvasMouseUpFunc = (_event: MouseEvent) => {
+      console.log(this.dragger.isClipAreaInDrag);
+      if (!this.dragger.isClipAreaInDrag) {
+        return;
+      }
+      this.dragger.isClipAreaInDrag = false;
+      this.clipArea.startX = this.dragger.currentX;
+      this.clipArea.startY = this.dragger.currentY;
+    }
+
+    document.addEventListener('mousemove', this.canvasMouseMoveFunc)
+    canvas.addEventListener('mousedown', this.canvasMouseDownFunc)
+    document.addEventListener('mouseup', this.canvasMouseUpFunc);
+  }
+
+  transferClipArea(changeX: number, changeY: number) {
+    const resizers = this.screenshotResizer!
+    Object.entries(resizers).forEach((value) => {
+      const eleName = value[0];
+      const left = this.dragRecord[eleName + 'Left'];
+      const top = this.dragRecord[eleName + 'Top'];
+      value[1].style.left = left + changeX + 'px';
+      value[1].style.top = top + changeY + 'px';
+    })
+
+    const startX = this.dragger.startX + changeX;
+    const startY = this.dragger.startY + changeY;
+    const width = this.dragger.width;
+    const height = this.dragger.height;
+
+    const context = this.mask!.getContext('2d')!;
+    context.clearRect(0, 0, this.width, this.height);
+    context.fillStyle = 'rgba(0,0,0,0.4)';
+    context.fillRect(0, 0, this.width, this.height);
+
+    context.clearRect(startX, startY, width, height);
+
+    this.dragger.currentX = startX;
+    this.dragger.currentY = startY;
+  }
+
+  updateClipArea() {
+
+  }
+
+  getClipAreaRect() {
     const resizer = this.screenshotResizer!;
     const neTop = pxielToNumber(resizer.northEast.style.top);
     const nwTop = pxielToNumber(resizer.northWest.style.top);
@@ -176,23 +325,32 @@ export class Screenshoter {
     const left = minLeft - maskLeft + canvasLeft;
     const width = maxLeft - minLeft;
     const height = maxTop - minTop;
+    return { top, left, width, height }
+  }
+
+  // TODO 结束的时候要把所有的事件全部都干掉
+  async confirmScreenshot() {
+
+    const storeState = this.imageEditor!.storeCanvasState();
+
+    const { top, left, width, height } = this.getClipAreaRect();
 
     const start = new Point(left, top);
     const end = new Point(left + width, height + top);
     const image = this.imageEditor!.getAreaImageInfo(start, end);
-    this.showAndHideElements();
+
+    this.handleScreenshotFinished();
+
     await this.imageEditor!.renderToCanvas(image);
-
     const cropState = this.imageEditor!.storeCanvasState();
-
     this.imageEditor!.getHistory().recordCropAction(storeState.wrapper, storeState.canvas, cropState.wrapper, cropState.canvas);
   }
 
   cancelScreenshot() {
-    this.showAndHideElements();
+    this.handleScreenshotFinished();
   }
 
-  showAndHideElements() {
+  handleScreenshotFinished() {
     this.toolbar!.style.display = 'none';
     const resizer = this.screenshotResizer!;
     Object.entries(resizer).forEach(([_k, v]) => {
@@ -201,6 +359,10 @@ export class Screenshoter {
     this.activeResizer = 'none';
     this.mask!.style.display = 'none';
     this.elementManager!.showResizer();
+    this.elementManager?.showToolbar();
+    document.removeEventListener('pointermove', this.mouseMoving);
+    document.removeEventListener('pointerup', this.mouseUp);
+    document.removeEventListener('mouseup', this.canvasMouseUpFunc);
   }
 
   adjustToolbarPosition() {
@@ -324,8 +486,8 @@ export class Screenshoter {
     const southEastLeft = pxielToNumber(resizer.southEast.style.left);
     const southEastTop = pxielToNumber(resizer.southEast.style.top);
 
-    const length = southEastLeft - northWestLeft;
-    const height = southEastTop - northWestTop;
+    const width = Math.round(southEastLeft - northWestLeft);
+    const height = Math.round(southEastTop - northWestTop);
 
     const context = this.mask!.getContext('2d')!;
     context.clearRect(0, 0, this.width, this.height);
@@ -336,9 +498,15 @@ export class Screenshoter {
     const startX = northWestLeft - canvasLeft;
     const startY = northWestTop - canvasTop;
 
-    context.clearRect(startX, startY, length, height);
+    context.clearRect(startX, startY, width, height);
+    this.clipArea.startX = startX;
+    this.clipArea.startY = startY;
+    this.clipArea.width = width;
+    this.clipArea.height = height;
     this.adjustToolbarPosition();
   }
+
+
   formatCenterResizer() {
     const resizer = this.screenshotResizer!;
     const nwLeft = pxielToNumber(resizer.northWest.style.left)
@@ -368,6 +536,9 @@ export class Screenshoter {
     mask.width = this.width;
     mask.height = this.height;
 
+    this.maskLeft = left;
+    this.maskTop = top;
+
     this.minLeft = left;
     this.maxLeft = this.minLeft + width;
     this.minTop = top;
@@ -387,6 +558,12 @@ export class Screenshoter {
     const cropHeight = Math.round(this.height * 0.6);
 
     context.clearRect(startX, startY, cropWidth, cropHeight);
+
+    this.clipArea = {
+      startX, startY,
+      width: cropWidth,
+      height: cropHeight
+    }
 
     const resizer = this.screenshotResizer!;
     resizer.northWest.style.left = left + cropLeft + 'px';
@@ -415,6 +592,25 @@ export class Screenshoter {
     Object.entries(resizer).forEach(([_k, v]) => {
       v.style.display = 'block';
     })
+
+    document.removeEventListener('pointermove', this.mouseMoving);
+    document.removeEventListener('pointerup', this.mouseUp);
+
+    this.mouseMoving = (e: MouseEvent) => {
+      if (this.activeResizer != 'none') {
+        this.movingX = e.pageX;
+        this.movingY = e.pageY;
+        this.resizeArea();
+      }
+    };
+    document.addEventListener('pointermove', this.mouseMoving);
+
+    this.mouseUp = () => {
+      this.activeResizer = 'none';
+    }
+
+    document.addEventListener('pointerup', this.mouseUp);
+    this.handleDragArea();
 
     this.elementManager!.hideResizer();
 

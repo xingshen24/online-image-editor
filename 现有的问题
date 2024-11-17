@@ -1,0 +1,41 @@
+1. 要把所有的小数全部都去除，小数会导致问题
+2. 拖拽现在还不是特别的灵活
+
+// 创建矩形
+const rect = new fabric.Rect({
+  left: 100,
+  top: 100,
+  width: 200,
+  height: 100,
+  fill: 'transparent',      // 设置矩形填充透明
+  stroke: 'red',            // 设置边框颜色
+  strokeWidth: 10,          // 设置边框宽度
+  selectable: true,
+  perPixelTargetFind: true  // 启用像素级别点击检测
+});
+
+const canvas = new fabric.Canvas('canvas');
+canvas.add(rect);
+
+// 监听鼠标点击事件
+canvas.on('mouse:down', function (event) {
+  const target = event.target;
+  if (target === rect) {
+    // 检查点击是否在透明区域
+    const pointer = canvas.getPointer(event.e);
+    const x = pointer.x - rect.left;
+    const y = pointer.y - rect.top;
+    
+    // 获取该像素位置的透明度
+    const pixel = canvas.contextTop.getImageData(x, y, 1, 1).data;
+    const isTransparent = pixel[3] === 0;
+
+    // 如果在透明区域，则取消选择
+    if (isTransparent) {
+      canvas.discardActiveObject();
+    }
+  }
+});
+
+
+3. toolbar并不能总是显示正确

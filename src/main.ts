@@ -1,4 +1,4 @@
-import * as fabric from 'fabric';
+import { Canvas, FabricImage } from 'fabric';
 import ElementManager from './element_manager';
 import ImageEditor from './image_editor';
 
@@ -6,20 +6,35 @@ class ImageEditorHelper {
 
   static currentImageEditor: ImageEditor | undefined;
 
-  static createImageEditor(width: number, height: number, imageUrl: string) {
-    const elements = this.createElement(width, height)
-    const canvas = this.initCanvas(elements.canvas, imageUrl);
+  static dpr = window.devicePixelRatio || 1;
+
+  static CANVAS_DEFAULT_WIDTH = 100;
+
+  static CANVAS_DEFAULT_HEIGHT = 100;
+
+  static createImageEditor(imageUrl: string) {
+
+    const elements = this.createElement()
     const eleManager = new ElementManager(elements);
+
+    const resizer = (canvas: Canvas, width: number, height: number) => {
+      this.resizeCanvas(canvas, eleManager, width, height);
+    }
+    const canvas = this.initCanvas(elements.canvas, imageUrl, resizer);
     const editor = new ImageEditor(canvas, eleManager);
     editor.init();
     return editor;
   }
 
-  private static createElement(width: number, height: number): Record<string, any> {
+  private static createElement(): Record<string, any> {
+
+    const width = this.CANVAS_DEFAULT_WIDTH, height = this.CANVAS_DEFAULT_HEIGHT;
+
     const wrapper = document.getElementById("app")!;
     wrapper.style.width = '100%';
     wrapper.style.height = '100%';
     wrapper.style.position = 'absolute';
+    wrapper.style.visibility = 'hidden';
     document.body.appendChild(wrapper);
 
     const toolbar = document.createElement("div");
@@ -28,30 +43,11 @@ class ImageEditorHelper {
     // 不考虑滚动条的事，出现滚动条的话，就给点偏差
     // canvasWrapper，包裹画板
     const canvasWrapper = document.createElement("div");
-    canvasWrapper.style.width = width + 'px';
-    canvasWrapper.style.height = height + 'px';
     canvasWrapper.style.backgroundColor = 'white';
     canvasWrapper.style.position = 'relative';
     canvasWrapper.style.overflow = 'hidden';
 
-    // top和left都要好好计算一下
-    const rect = wrapper.getBoundingClientRect();
-    const wrapperWidth = rect.width;
-    const wrapperHeight = rect.height;
-
-    let leftOffset = (wrapperWidth - width) / 2;
-    if (leftOffset <= 20) {
-      leftOffset = 20;
-    }
-    let topOffset = (wrapperHeight - height) / 2;
-    if (topOffset <= 20) {
-      topOffset = 20;
-    }
-
-    canvasWrapper.style.left = leftOffset + 'px';
-    canvasWrapper.style.top = topOffset + 'px';
-
-    const resizers = this.createCanvasResizer(wrapper, rect, width, height);
+    const resizers = this.createCanvasResizer(wrapper);
 
     // 添加一张用于截图的canvas，以及8个resizer
     const screenshotCanvas = document.createElement("canvas")
@@ -64,11 +60,13 @@ class ImageEditorHelper {
     // 拉伸的过程中看不出来，等拉伸完统一结算
     // 拉伸下右不需要考虑太多，拉伸上左要让图片进行偏移
 
+    // 给的默认值，不需要考虑太多
     const canvas = document.createElement("canvas")
     canvas.style.width = width + 'px';
     canvas.style.height = height + 'px';
     canvas.width = width;
     canvas.height = height;
+
     canvasWrapper.append(canvas);
     wrapper.appendChild(canvasWrapper)
     wrapper.appendChild(toolbar)
@@ -143,13 +141,16 @@ class ImageEditorHelper {
   // topbar和bottombar都要做固定width，居中
   // 不要考虑其它的，尾部也是一样的
   private static initToolbar(toolbar: HTMLElement): Record<string, HTMLElement> {
+
     toolbar.style.padding = "8px";
     toolbar.style.backgroundColor = "#e5e6e7";
     toolbar.style.borderRadius = "4px 4px 4px 4px";
     toolbar.style.height = "24px";
-    toolbar.style.width = "600px";
+    toolbar.style.width = "690px";
     toolbar.style.position = "absolute";
+
     const ret = {} as any;
+
     ret.rectangleMenu = this.appendMenu(toolbar, './assets/rect.svg');
     ret.ellipseMenu = this.appendMenu(toolbar, './assets/circle.svg');
     ret.arrowMenu = this.appendMenu(toolbar, './assets/arrow.svg');
@@ -157,19 +158,22 @@ class ImageEditorHelper {
     ret.textMenu = this.appendMenu(toolbar, './assets/text.svg');
     ret.mosaicMenu = this.appendMenu(toolbar, './assets/mosaic.svg');
 
-    ret.flipXMenu = this.appendMenu(toolbar, './assets/flipX.svg', 42);
+    ret.shrinkMenu = this.appendMenu(toolbar, './assets/shrink.svg', 42);
+    ret.extendMenu = this.appendMenu(toolbar, './assets/extend.svg');
+    ret.flipXMenu = this.appendMenu(toolbar, './assets/flipX.svg');
     ret.flipYMenu = this.appendMenu(toolbar, './assets/flipY.svg');
+
 
     ret.rotateCounterClockwiseMenu = this.appendMenu(toolbar, './assets/rotate.svg');
     ret.rotateCounterClockwiseMenu.style.transform = 'rotateY(180deg)';
     ret.rotateClockwiseMenu = this.appendMenu(toolbar, './assets/rotate.svg');
     ret.cropMenu = this.appendMenu(toolbar, './assets/crop.svg');
 
-    ret.undoMenu = this.appendMenu(toolbar, './assets/undo.svg', 42);
+    ret.undoMenu = this.appendMenu(toolbar, './assets/undo.svg', 38);
     ret.redoMenu = this.appendMenu(toolbar, './assets/redo.svg');
-    // ret.resetMenu = this.appendMenu(toolbar, './assets/reset.svg');
-    ret.cancaleMenu = this.appendMenu(toolbar, './assets/cancel.svg', 42);
-    ret.confirmMenu = this.appendMenu(toolbar, './assets/confirm.svg',0,0);
+    ret.resetMenu = this.appendMenu(toolbar, './assets/reset.svg');
+    ret.cancaleMenu = this.appendMenu(toolbar, './assets/cancel.svg', 36);
+    ret.confirmMenu = this.appendMenu(toolbar, './assets/confirm.svg', 0, 0);
     return ret;
   }
 
@@ -199,38 +203,77 @@ class ImageEditorHelper {
     return menu;
   }
 
-  private static initCanvas(dom: HTMLCanvasElement, imageUrl: string): fabric.Canvas {
+  private static initCanvas(dom: HTMLCanvasElement, imageUrl: string, resizer: (canvas: Canvas, width: number, height: number) => void): fabric.Canvas {
 
-    const canvas = new fabric.Canvas(dom, {
-      width: dom.width, height: dom.height
+    // 随便给个默认值，后面初始化的时候改掉
+    const canvas = new Canvas(dom, {
+      width: this.CANVAS_DEFAULT_WIDTH, height: this.CANVAS_DEFAULT_HEIGHT
     })
-    fabric.FabricImage.fromURL(imageUrl).then(img => {
+
+    FabricImage.fromURL(imageUrl).then(img => {
       // 使用setX和setY
-      const imageWidth = img.width;
-      const imageHeight = img.height;
-      const canvasHeight = dom.height;
-      const canvasWidth = dom.width;
-      const offsetX = (canvasWidth - imageWidth) / 2;
-      const offsetY = (canvasHeight - imageHeight) / 2
-      img.setX(offsetX);
-      img.setY(offsetY);
+      img.setX(0);
+      img.setY(0);
       canvas.backgroundImage = img;
       canvas.backgroundColor = '#FFF';
       // 设置完需要渲染一下
       canvas.renderAll();
+      const width = img.width, height = img.height;
+      resizer(canvas, width, height);
     })
 
     return canvas;
   }
 
-  private static createCanvasResizer(wrapper: HTMLElement, rect: DOMRect, width: number, height: number) {
+  static resizeCanvas(fbCanvas: Canvas, manager: ElementManager, width: number, height: number) {
+    const dpr = this.dpr;
+    const wrapper = manager.wrapper;
+    const canvasWrapper = manager.canvasWrapper;
+    const canvas = manager.canvas;
+
+    canvasWrapper.style.width = width + 'px';
+    canvasWrapper.style.height = height + 'px';
+
+    // top和left都要好好计算一下
+    const rect = wrapper.getBoundingClientRect();
+    const wrapperWidth = rect.width;
+    const wrapperHeight = rect.height;
+
+    let leftOffset = (wrapperWidth - width) / 2;
+    if (leftOffset <= 20) {
+      leftOffset = 20;
+    }
+    let topOffset = (wrapperHeight - height) / 2;
+    if (topOffset <= 20) {
+      topOffset = 20;
+    }
+
+    canvasWrapper.style.left = leftOffset + 'px';
+    canvasWrapper.style.top = topOffset + 'px';
+
+    canvas.style.width = width + 'px';
+    canvas.style.height = height + 'px';
+    canvas.width = Math.round(width * dpr);
+    canvas.height = Math.round(height * dpr);
+
+    fbCanvas.setDimensions({ width, height })
+
+    manager.fixComponentsPosition();
+    wrapper.style.visibility = 'visible';
+  }
+
+  private static createCanvasResizer(wrapper: HTMLElement) {
 
     const squareSize = 12;
 
-    const topResizer = document.createElement('div');
-    const leftResizer = document.createElement('div');
-    const bottomResizer = document.createElement('div');
-    const rightResizer = document.createElement('div');
+    const northResizer = document.createElement('div');
+    const northWestResizer = document.createElement('div');
+    const westResizer = document.createElement('div');
+    const southWestResizer = document.createElement('div');
+    const southResizer = document.createElement('div');
+    const southEastResizer = document.createElement('div');
+    const eastResizer = document.createElement('div');
+    const northEastResizer = document.createElement('div');
 
     function format(ele: HTMLDivElement) {
       ele.style.width = squareSize + 'px';
@@ -245,62 +288,29 @@ class ImageEditorHelper {
       })
     }
 
-    const parentWidth = rect.width;
-    const parentHeight = rect.height;
+    format(northResizer);
+    format(northWestResizer);
+    format(westResizer);
+    format(southWestResizer);
+    format(southResizer);;
+    format(southEastResizer);
+    format(eastResizer);
+    format(northEastResizer);
 
-    format(topResizer);
-    topResizer.style.left = (parentWidth - squareSize) / 2 + 'px';
-    topResizer.style.top = (parentHeight - height) / 2 - squareSize + 'px';
-    topResizer.classList.add('online-image-editor-top-resizer');
-
-    format(leftResizer);
-    leftResizer.style.left = (parentWidth - width) / 2 - squareSize + 'px';
-    leftResizer.style.top = (parentHeight - squareSize) / 2 + 'px';
-    leftResizer.classList.add('online-image-editor-left-resizer');
-
-    format(bottomResizer);
-    bottomResizer.style.left = (parentWidth - squareSize) / 2 + 'px';
-    bottomResizer.style.top = (parentHeight + height) / 2 + 'px';
-    bottomResizer.classList.add('online-image-editor-bottom-resizer');
-
-    format(rightResizer);
-    rightResizer.style.left = (parentWidth + width) / 2 + 'px';
-    rightResizer.style.top = (parentHeight - squareSize) / 2 + 'px';
-    rightResizer.classList.add('online-image-editor-right-resizer');
-
-    wrapper.appendChild(topResizer);
-    wrapper.appendChild(leftResizer);
-    wrapper.appendChild(bottomResizer);
-    wrapper.appendChild(rightResizer);
-
-    const style = document.createElement('style');
-    const css = `
-      .online-image-editor-top-resizer:hover{
-        cursor: n-resize;
-      }
-      
-      .online-image-editor-left-resizer:hover{
-      cursor: w-resize;
-      }
-      
-      .online-image-editor-bottom-resizer:hover{
-        cursor: s-resize;
-      }
-      
-      .online-image-editor-right-resizer:hover{
-        cursor: e-resize;
-      }
-
-    `
-    style.appendChild(document.createTextNode(css));
-    document.head.appendChild(style);
+    wrapper.appendChild(northResizer);
+    wrapper.appendChild(northWestResizer);
+    wrapper.appendChild(westResizer);
+    wrapper.appendChild(southWestResizer);
+    wrapper.appendChild(southResizer);
+    wrapper.appendChild(southEastResizer);
+    wrapper.appendChild(eastResizer);
+    wrapper.appendChild(northEastResizer);
 
     return {
-      topResizer, leftResizer, bottomResizer, rightResizer
+      northResizer, northWestResizer, westResizer, southWestResizer,
+      southResizer, southEastResizer, eastResizer, northEastResizer
     }
   }
-
-
 }
 
-ImageEditorHelper.currentImageEditor = ImageEditorHelper.createImageEditor(946 * 1.3, 620 * 1.2, '/basic.jpg');
+ImageEditorHelper.currentImageEditor = ImageEditorHelper.createImageEditor('/basic.jpg');

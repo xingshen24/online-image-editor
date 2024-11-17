@@ -723,4 +723,9 @@ export default class OperationHistory {
   clearRedoStack() {
     this.redoStack = [];
   }
+
+  clearStack(){
+    this.redoStack = []
+    this.undoStack = []
+  }
 }

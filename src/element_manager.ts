@@ -1,10 +1,10 @@
 import { FabricObject, Point } from "fabric";
+import { CanvasDetailedProps, FabricCanvasProps, FlipXUndoProps, FlipYUndoProps, RotateProps } from "./history";
 import ImageEditor from "./image_editor";
 import { OperatorProps, OperatorType } from "./image_editor_operator";
 import MosaicOperator from "./operator/mosaic_operator";
 import TextOperator from "./operator/text_operator";
 import { getAbsolutePosition } from "./uitls";
-import { CanvasDetailedProps, CanvasWrapperProps, FabricCanvasProps, FlipXUndoProps, FlipYUndoProps, RotateProps } from "./history";
 
 const COLOR_MAP = {
   RED: '#FF0000',
@@ -12,6 +12,7 @@ const COLOR_MAP = {
   BLUE: '#1A9BFF',
   GREEN: '#1AAF19',
   BLACK: '#323232',
+  GREY: '#808080',
   WHITE: '#FFFFFF'
 }
 
@@ -37,6 +38,8 @@ const toNumber = (str: string) => {
 
 export default class ElementManager {
 
+  public static HAS_CURSOR_CSS_ADDED = false;
+
   private static COLOR_ACTIVE_FLAG = "color_in_active";
 
   private static ACTIVE_SIZE_COLOR = '#1AAD19';
@@ -45,15 +48,20 @@ export default class ElementManager {
 
   private imageEditor: ImageEditor | null = null;
 
-  private canvasWrapper: HTMLDivElement;
+  readonly canvasWrapper: HTMLDivElement;
+  readonly canvas: HTMLCanvasElement;
   private fabricWrapperEl: HTMLDivElement | null = null;
-  private topResizer: HTMLDivElement;
-  private leftResizer: HTMLDivElement;
-  private bottomResizer: HTMLDivElement;
-  private rightResizer: HTMLDivElement;
+  private northResizer: HTMLDivElement;
+  private northWestResizer: HTMLDivElement;
+  private westResizer: HTMLDivElement;
+  private southWestResizer: HTMLDivElement;
+  private southResizer: HTMLDivElement;
+  private southEastResizer: HTMLDivElement;
+  private eastResizer: HTMLDivElement;
+  private northEastResizer: HTMLDivElement;
 
   private topInResize: boolean = false;
-  // fw Fabric Top
+  // fw Fabric Wrapper
   private topChange = { y: NaN, top: NaN, height: NaN, fwTop: NaN, changeHeight: NaN };
   private topStartFunc: (e: MouseEvent) => void = DEFAULT_FUNCTION;
   private topMoveFunc: (e: MouseEvent) => void = DEFAULT_FUNCTION;
@@ -75,7 +83,7 @@ export default class ElementManager {
   private rightFinishFunc: (e: MouseEvent) => void = DEFAULT_FUNCTION;
   private squareSize: number = NaN;
 
-  private wrapper: HTMLDivElement;
+  readonly wrapper: HTMLDivElement;
 
   private screenshotCanvas: HTMLCanvasElement;
   private screenshotResizer: {
@@ -101,6 +109,9 @@ export default class ElementManager {
   private textMenu: HTMLDivElement;
   private mosaicMenu: HTMLDivElement;
 
+  private shrinkMenu: HTMLDivElement;
+  private extendMenu: HTMLDivElement;
+
   private flipXMenu: HTMLDivElement;
   private flipYMenu: HTMLDivElement;
   private rotateClockwiseMenu: HTMLDivElement;
@@ -125,6 +136,7 @@ export default class ElementManager {
   private green: HTMLSpanElement;
   private black: HTMLSpanElement;
   private white: HTMLSpanElement;
+  private grey: HTMLSpanElement;
 
   private sizeOptions: HTMLSpanElement;
   private colorOptions: HTMLSpanElement;
@@ -137,6 +149,8 @@ export default class ElementManager {
   constructor(options: any) {
 
     this.wrapper = options.wrapper;
+    this.canvas = options.canvas;
+
     this.screenshotCanvas = options.screenshotCanvas;
     this.screenshotResizer = options.screenshotResizer;
     this.screenshotToolbar = options.screenshotToolbar.toolbar;
@@ -144,11 +158,18 @@ export default class ElementManager {
     this.screenshotCancelButton = options.screenshotToolbar.screenshot.cancel;
 
     this.canvasWrapper = options.canvasWrapper;
-    this.topResizer = options.topResizer;
-    this.leftResizer = options.leftResizer;
-    this.bottomResizer = options.bottomResizer;
-    this.rightResizer = options.rightResizer;
-    this.squareSize = this.bottomResizer.getBoundingClientRect().width;
+    this.northResizer = options.northResizer;
+    this.northWestResizer = options.northWestResizer;
+    this.westResizer = options.westResizer;
+    this.southWestResizer = options.southWestResizer;
+    this.southResizer = options.southResizer;
+    this.southEastResizer = options.southEastResizer;
+    this.eastResizer = options.eastResizer;
+    this.northEastResizer = options.northEastResizer;
+
+    this.fixResizerPosition();
+
+    this.squareSize = this.southResizer.getBoundingClientRect().width;
 
     this.toolbar = options.toolbar;
 
@@ -165,6 +186,8 @@ export default class ElementManager {
     this.mosaicMenu = options.mosaicMenu;
     this.menuMap.set(OperatorType.MOSAIC, this.mosaicMenu);
 
+    this.shrinkMenu = options.shrinkMenu;
+    this.extendMenu = options.extendMenu;
     this.flipXMenu = options.flipXMenu;
     this.flipYMenu = options.flipYMenu;
     this.rotateClockwiseMenu = options.rotateClockwiseMenu;
@@ -188,6 +211,7 @@ export default class ElementManager {
     this.blue = ele.blue;
     this.black = ele.black;
     this.white = ele.white;
+    this.grey = ele.grey;
 
     this.sizeOptions = ele.sizeOptions;
     this.colorOptions = ele.colorOptions;
@@ -199,6 +223,7 @@ export default class ElementManager {
     this.eleColorMap.set(this.blue, COLOR_MAP.BLUE);
     this.eleColorMap.set(this.black, COLOR_MAP.BLACK);
     this.eleColorMap.set(this.white, COLOR_MAP.WHITE);
+    this.eleColorMap.set(this.grey, COLOR_MAP.GREY);
 
     this.colorEleMap.set(COLOR_MAP.RED, this.red);
     this.colorEleMap.set(COLOR_MAP.ORANGLE, this.orangle);
@@ -206,13 +231,56 @@ export default class ElementManager {
     this.colorEleMap.set(COLOR_MAP.BLUE, this.black);
     this.colorEleMap.set(COLOR_MAP.BLACK, this.black);
     this.colorEleMap.set(COLOR_MAP.WHITE, this.white);
+    this.colorEleMap.set(COLOR_MAP.GREY, this.grey);
   }
 
   init(imageEditor: ImageEditor) {
     this.imageEditor = imageEditor;
     this.fabricWrapperEl = imageEditor.getCanvas().wrapperEl;
     this.initResizers();
-    this.adjustToolbarPosition();
+    this.fixToolbarPosition();
+    this.appendHoverCSS();
+  }
+
+  appendHoverCSS() {
+    if (ElementManager.HAS_CURSOR_CSS_ADDED) {
+      return;
+    }
+    const style = document.createElement('style');
+    const css = `
+      .north-cursor-resize:hover, .south-cursor-resize:hover{
+        cursor: ns-resize;
+      }
+
+      .west-cursor-resize:hover, .east-cursor-resize:hover{
+        cursor: ew-resize;
+      }
+
+      .north-east-cursor-resize:hover, .south-west-cursor-resize:hover{
+        cursor: nesw-resize;
+      }
+
+      .north-west-cursor-resize:hover, .south-east-cursor-resize:hover{
+        cursor: nwse-resize;
+      }
+    `
+    style.appendChild(document.createTextNode(css));
+    document.head.appendChild(style);
+    ElementManager.HAS_CURSOR_CSS_ADDED = true;
+
+    this.northResizer.classList.add('north-cursor-resize');
+    this.westResizer.classList.add('west-cursor-resize');
+    this.southResizer.classList.add('south-cursor-resize');
+    this.eastResizer.classList.add('east-cursor-resize');
+
+    this.screenshotResizer.north.classList.add('north-cursor-resize');
+    this.screenshotResizer.northWest.classList.add('north-west-cursor-resize');
+    this.screenshotResizer.west.classList.add('west-cursor-resize');
+    this.screenshotResizer.southWest.classList.add('south-west-cursor-resize');
+    this.screenshotResizer.south.classList.add('south-cursor-resize');
+    this.screenshotResizer.southEast.classList.add('south-east-cursor-resize');
+    this.screenshotResizer.east.classList.add('east-cursor-resize');
+    this.screenshotResizer.northEast.classList.add('north-east-cursor-resize');
   }
 
   createOperatorOptionBar() {
@@ -270,13 +338,16 @@ export default class ElementManager {
     black.style.backgroundColor = COLOR_MAP.BLACK;
     const white = document.createElement("span");
     white.style.backgroundColor = COLOR_MAP.WHITE;
+    const grey = document.createElement("span");
+    grey.style.backgroundColor = COLOR_MAP.GREY;
     colorOptions.append(red);
     colorOptions.append(orangle);
     colorOptions.append(blue);
     colorOptions.append(green);
     colorOptions.append(black);
     colorOptions.append(white);
-    const colors = [red, orangle, blue, green, black, white];
+    colorOptions.append(grey);
+    const colors = [red, orangle, blue, green, black, white, grey];
 
     for (const color of colors) {
       const style = color.style;
@@ -289,14 +360,14 @@ export default class ElementManager {
     }
 
     red.style.margin = '10px 0 10px 0';
-    white.style.marginRight = '8px';
+    grey.style.marginRight = '8px';
     white.style.border = 'solid 1px #E6E6E6';
     white.style.boxSizing = 'border-box';
 
     const arrowWrapper = document.createElement('div');
     const arrow = document.createElement('div');
     arrow.style.position = 'absolute';
-    arrow.style.left = '128px';
+    arrow.style.left = '142px';
     arrow.style.top = '-8px';
     arrow.style.borderTopWidth = '0';
     arrow.classList.add('online-image-editor-operator-option-arrow');
@@ -328,32 +399,40 @@ export default class ElementManager {
     document.body.append(wrapper);
     return {
       optionBar: wrapper,
-      small, normal, big, red, orangle, green, blue, black, white,
+      small, normal, big, red, orangle, green, blue, black, white, grey,
       sizeOptions, colorOptions, arrow
     };
   }
 
   bindEvents() {
-    const that = this;
-    const imageEditor = this.imageEditor!;
-    this.rectangleMenu.onclick = () => { that.switchOperator(OperatorType.RECT) };
-    this.ellipseMenu.onclick = () => { that.switchOperator(OperatorType.ELLIPSE) };
-    this.arrowMenu.onclick = () => { that.switchOperator(OperatorType.ARROW) };
-    this.drawMenu.onclick = () => { that.switchOperator(OperatorType.DRAW) };
-    this.mosaicMenu.onclick = () => { that.switchOperator(OperatorType.MOSAIC) };
-    this.textMenu.onclick = () => { that.switchOperator(OperatorType.TEXT) };
 
-    this.flipXMenu.onclick = () => { that.flipHorizontal(); }
-    this.flipYMenu.onclick = () => { that.flipVertical(); }
-    this.rotateClockwiseMenu.onclick = () => { that.rotateClockwise(); }
-    this.rotateCounterClockwiseMenu.onclick = () => { that.rotateCounterClockwise(); }
-    this.cropMenu.onclick = () => { that.cropImage(); }
+    const imageEditor = this.imageEditor!;
+
+    this.rectangleMenu.onclick = () => { this.switchOperator(OperatorType.RECT) };
+    this.ellipseMenu.onclick = () => { this.switchOperator(OperatorType.ELLIPSE) };
+    this.arrowMenu.onclick = () => { this.switchOperator(OperatorType.ARROW) };
+    this.drawMenu.onclick = () => { this.switchOperator(OperatorType.DRAW) };
+    this.mosaicMenu.onclick = () => { this.switchOperator(OperatorType.MOSAIC) };
+    this.textMenu.onclick = () => { this.switchOperator(OperatorType.TEXT) };
+
+    this.shrinkMenu.onclick = () => { this.shrinkCanvasToBackgroundImage(); }
+    this.extendMenu.onclick = () => { this.extendsCanvas(); }
+
+    this.flipXMenu.onclick = () => { this.flipHorizontal(); }
+    this.flipYMenu.onclick = () => { this.flipVertical(); }
+    this.rotateClockwiseMenu.onclick = () => { this.rotateClockwise(); }
+    this.rotateCounterClockwiseMenu.onclick = () => { this.rotateCounterClockwise(); }
+    this.cropMenu.onclick = () => { this.cropImage(); }
 
     this.undoMenu.onclick = () => { imageEditor.getHistory().undo(); }
     this.redoMenu.onclick = () => { imageEditor.getHistory().redo(); }
 
-    this.confirmMenu.onclick = () => { that.downloadAreaImage(); }
+    this.resetMenu.onclick = () => { this.resetImageEditor(); }
+
+    this.confirmMenu.onclick = () => { this.downloadAreaImage(); }
   }
+
+
 
   switchOperator(type: OperatorType) {
     const imageEditor = this.imageEditor!;
@@ -410,6 +489,7 @@ export default class ElementManager {
       this.blue.onclick = () => { that.changeColor(operator, COLOR_MAP.BLUE, that.blue) };
       this.black.onclick = () => { that.changeColor(operator, COLOR_MAP.BLACK, that.black) };
       this.white.onclick = () => { that.changeColor(operator, COLOR_MAP.WHITE, that.white) };
+      this.grey.onclick = () => { that.changeColor(operator, COLOR_MAP.GREY, that.grey) };
     } else {
       this.showSizeOptions();
     }
@@ -436,9 +516,9 @@ export default class ElementManager {
     const isColorVisiable = this.imageEditor!.getOperatorType() != OperatorType.MOSAIC;
     if (!isColorVisiable) {
       this.colorOptions.style.display = 'none';
-      // 168 / 2，168是整个颜色区域的宽度，去除之后，大小选择框，要向右移动这么多
+      // 196 / 2，196是整个颜色区域的宽度，去除之后，大小选择框，要向右移动这么多
       let left = Number(this.optionBar.style.left.replace('px', ''));
-      left = left + 168 / 2;
+      left = left + (196) / 2;
       let width = this.optionBar.getBoundingClientRect().width;
       this.optionBar.style.left = left + 'px';
       const arrowLeft = width / 2;
@@ -457,7 +537,7 @@ export default class ElementManager {
 
   changeColor(operator: OperatorProps, color: string, ele: HTMLSpanElement) {
     operator.setOperatorColor(color);
-    const colors = [this.red, this.orangle, this.green, this.blue, this.black, this.white];
+    const colors = [this.red, this.orangle, this.green, this.blue, this.black, this.white, this.grey];
     for (const color of colors) {
       if (color == ele) {
         this.activeColor(color);
@@ -522,7 +602,7 @@ export default class ElementManager {
     if (optType != OperatorType.NONE) {
       this.showOptionBarDirect();
     }
-    this.adjustToolbarPosition();
+    this.fixToolbarPosition();
   }
 
   initResizers() {
@@ -530,7 +610,7 @@ export default class ElementManager {
     const that = this;
 
     /**********************    开始处理头部的拉伸箭头      *****************/
-    this.topResizer.removeEventListener('mousedown', this.topStartFunc)
+    this.northResizer.removeEventListener('mousedown', this.topStartFunc)
     window.removeEventListener('mousemove', this.topMoveFunc);
     window.removeEventListener('mouseup', this.topFinsihFunc);
 
@@ -557,16 +637,19 @@ export default class ElementManager {
       that.changeHeightFromTop(event.pageY);
     }
     this.topFinsihFunc = (_event: MouseEvent) => {
+      if (!that.topInResize) {
+        return;
+      }
       that.finishResize();
       that.showToolbar();
     }
 
-    this.topResizer.addEventListener('mousedown', this.topStartFunc)
+    this.northResizer.addEventListener('mousedown', this.topStartFunc)
     window.addEventListener('mousemove', this.topMoveFunc);
     window.addEventListener('mouseup', this.topFinsihFunc);
 
     /**********************    开始处理左侧的拉伸箭头      *****************/
-    this.leftResizer.removeEventListener('mousedown', this.leftStartFunc)
+    this.westResizer.removeEventListener('mousedown', this.leftStartFunc)
     window.removeEventListener('mousemove', this.leftMoveFunc);
     window.removeEventListener('mouseup', this.leftFinishFunc);
 
@@ -593,25 +676,26 @@ export default class ElementManager {
       that.changeHeightFromLeft(event.pageX);
     }
     this.leftFinishFunc = (_event: MouseEvent) => {
+      if (!that.leftInResize) return;
       that.finishResize();
       that.showToolbar();
     }
 
-    this.leftResizer.addEventListener('mousedown', this.leftStartFunc)
+    this.westResizer.addEventListener('mousedown', this.leftStartFunc)
     window.addEventListener('mousemove', this.leftMoveFunc);
     window.addEventListener('mouseup', this.leftFinishFunc);
 
     /**********************    开始处理底部的拉伸箭头      *****************/
 
-    this.bottomResizer.removeEventListener('mousedown', this.bottomStartFunc)
+    this.southResizer.removeEventListener('mousedown', this.bottomStartFunc)
     window.removeEventListener('mousemove', this.bottomMoveFunc);
     window.removeEventListener('mouseup', this.bottomFinishFunc);
 
     this.bottomStartFunc = (event: MouseEvent) => {
       that.bottomInResize = true;
       const height = this.canvasWrapper.style.height.replace('px', '');
-      const top = this.bottomResizer.style.top.replace('px', '');
-      const leftRightTop = this.leftResizer.style.top.replace('px', '');
+      const top = this.southResizer.style.top.replace('px', '');
+      const leftRightTop = this.westResizer.style.top.replace('px', '');
       that.bottomChange.height = Number(height);
       that.bottomChange.y = event.pageY;
       that.bottomChange.top = Number(top);
@@ -627,25 +711,26 @@ export default class ElementManager {
       that.changeHeightFromBottom(event.pageY);
     }
     this.bottomFinishFunc = (_event: MouseEvent) => {
+      if (!that.bottomInResize) return;
       that.finishResize();
       that.showToolbar();
     }
 
-    this.bottomResizer.addEventListener('mousedown', this.bottomStartFunc)
+    this.southResizer.addEventListener('mousedown', this.bottomStartFunc)
     window.addEventListener('mousemove', this.bottomMoveFunc);
     window.addEventListener('mouseup', this.bottomFinishFunc);
 
     /**********************    开始处理右侧的拉伸箭头      *****************/
 
-    this.bottomResizer.removeEventListener('mousedown', this.rightStartFunc)
+    this.southResizer.removeEventListener('mousedown', this.rightStartFunc)
     window.removeEventListener('mousemove', this.rightMoveFunc);
     window.removeEventListener('mouseup', this.rightFinishFunc);
 
     this.rightStartFunc = (event: MouseEvent) => {
       that.rightInResize = true;
       const width = this.canvasWrapper.style.width.replace('px', '');
-      const left = this.rightResizer.style.left.replace('px', '');
-      const topBottomLeft = this.topResizer.style.left.replace('px', '');
+      const left = this.eastResizer.style.left.replace('px', '');
+      const topBottomLeft = this.northResizer.style.left.replace('px', '');
       that.rightChange.width = Number(width)
       that.rightChange.x = event.pageX;
       that.rightChange.left = Number(left);
@@ -661,11 +746,12 @@ export default class ElementManager {
       that.changeWidthFromRight(event.pageX);
     }
     this.rightFinishFunc = (_event: MouseEvent) => {
+      if (!that.rightInResize) return;
       that.finishResize();
       that.showToolbar();
     }
 
-    this.rightResizer.addEventListener('mousedown', this.rightStartFunc)
+    this.eastResizer.addEventListener('mousedown', this.rightStartFunc)
     window.addEventListener('mousemove', this.rightMoveFunc);
     window.addEventListener('mouseup', this.rightFinishFunc);
 
@@ -691,9 +777,10 @@ export default class ElementManager {
 
     this.canvasWrapper.style.width = newWidth + 'px';
     this.canvasWrapper.style.left = newLeft + 'px';
-    this.leftResizer.style.left = (newLeft - this.squareSize) + 'px';
+    this.westResizer.style.left = (newLeft - this.squareSize) + 'px';
     this.fabricWrapperEl!.style.left = newFwLeft + 'px';
     this.leftChange.changeWidth = changedWidth;
+    this.fixResizerPosition();
   }
 
   changeHeightFromTop(pageY: number) {
@@ -714,9 +801,11 @@ export default class ElementManager {
 
     this.canvasWrapper.style.height = newHeight + 'px';
     this.canvasWrapper.style.top = newTop + 'px';
-    this.topResizer.style.top = (newTop - this.squareSize) + 'px';
+    this.northResizer.style.top = (newTop - this.squareSize) + 'px';
     this.fabricWrapperEl!.style.top = (newFwTop) + 'px';
     this.topChange.changeHeight = changedHeight;
+
+    this.fixResizerPosition();
   }
 
   changeHeightFromBottom(pageY: number) {
@@ -729,12 +818,9 @@ export default class ElementManager {
       newHeight = 80;
       changedHeight = newHeight - oldHeight;
     }
-    const newTop = this.bottomChange.top + changedHeight;
     this.canvasWrapper.style.height = newHeight + 'px';
-    this.bottomResizer.style.top = newTop + 'px';
-    this.leftResizer.style.top = this.bottomChange.leftRightTop + (changedHeight / 2) + 'px';
-    this.rightResizer.style.top = this.bottomChange.leftRightTop + (changedHeight / 2) + 'px';
     this.bottomChange.changeHeight = changedHeight;
+    this.fixResizerPosition();
   }
 
   changeWidthFromRight(pageX: number) {
@@ -748,11 +834,13 @@ export default class ElementManager {
     }
     const newLeft = this.rightChange.left + changedWidth;
     this.canvasWrapper.style.width = newWidth + 'px';
-    this.rightResizer.style.left = newLeft + 'px';
+    this.eastResizer.style.left = newLeft + 'px';
     // bottom和top也要跟着同步改变
-    this.topResizer.style.left = this.rightChange.topBottomLeft + (changedWidth / 2) + 'px';
-    this.bottomResizer.style.left = this.rightChange.topBottomLeft + (changedWidth / 2) + 'px';
+    this.northResizer.style.left = this.rightChange.topBottomLeft + (changedWidth / 2) + 'px';
+    this.southResizer.style.left = this.rightChange.topBottomLeft + (changedWidth / 2) + 'px';
     this.rightChange.changeWidth = changedWidth;
+
+    this.fixResizerPosition();
   }
 
   finishResize() {
@@ -850,6 +938,122 @@ export default class ElementManager {
       newWidth = fabricWidth + diffWidth;
     }
     this.imageEditor?.setCanvasWidth(newWidth)
+  }
+
+  // 四周如果有白板，就把白板都缩了，其它的不同，相当于只动画板，不动画布
+  shrinkCanvasToBackgroundImage() {
+    const canvas = this.imageEditor!.getCanvas();
+    const image = canvas.backgroundImage!;
+    const point = image.getXY();
+
+    const { visiableHeight, visiableWidth, left, top } = this.getCanvasAreaInfo();
+    const shrinkRight = point.x + image.width - left < visiableWidth;
+    const shrinkBottom = point.y + image.height - top < visiableHeight;
+
+    const cutWrapperLeft = point.x > left ? point.x - left : 0;
+    const cutWrapperTop = point.y > top ? point.y - top : 0;
+
+    const cutWrapperRight = shrinkRight ? visiableWidth - (point.x + image.width - left) : 0;
+    const cutWrapperBottom = shrinkBottom ? visiableHeight - (point.y + image.height - top) : 0;
+
+    const wrapperWidth = pxielToNumber(this.canvasWrapper.style.width)
+    const wrapperHeight = pxielToNumber(this.canvasWrapper.style.height)
+    const wrapperTop = pxielToNumber(this.canvasWrapper.style.top)
+    const wrapperLeft = pxielToNumber(this.canvasWrapper.style.left)
+
+    this.canvasWrapper.style.width = wrapperWidth - cutWrapperRight - cutWrapperLeft + 'px';
+    this.canvasWrapper.style.height = wrapperHeight - cutWrapperBottom - cutWrapperTop + 'px';
+
+    // 视口向下移动的时候，画板不要动，也就是说画板left、top要相应的变化
+    this.canvasWrapper.style.top = wrapperTop + cutWrapperTop + 'px';
+    this.canvasWrapper.style.left = wrapperLeft + cutWrapperLeft + 'px';
+    this.fabricWrapperEl!.style.top = -top - cutWrapperTop + 'px';
+    this.fabricWrapperEl!.style.left = -left - cutWrapperLeft + 'px';
+
+    this.fixComponentsPosition();
+  }
+
+  // 如果图片没有显示全，那么先显示全图片
+  extendsCanvas() {
+
+    const canvas = this.imageEditor!.getCanvas();
+    const image = canvas.backgroundImage!;
+
+    const point = image.getXY();
+    const { visiableHeight, visiableWidth, left, top, canvasHeight, canvasWidth } = this.getCanvasAreaInfo();
+
+    const topExtend = point.y - top;
+    const leftExtend = point.x - left;
+    const bottomExtend = visiableHeight - (point.y + image.height - top);
+    const rightExtend = visiableWidth - (point.x + image.width - left);
+
+    const wrapperWidth = pxielToNumber(this.canvasWrapper.style.width)
+    const wrapperHeight = pxielToNumber(this.canvasWrapper.style.height)
+    const wrapperTop = pxielToNumber(this.canvasWrapper.style.top)
+    const wrapperLeft = pxielToNumber(this.canvasWrapper.style.left)
+
+    let maxXExtend = Math.max(leftExtend, rightExtend);
+    let maxYExtend = Math.max(topExtend, bottomExtend);
+    let minXExtend = Math.min(leftExtend, rightExtend);
+    let minYExtend = Math.min(topExtend, bottomExtend);
+
+    let xExtend = 0, yExtend = 0;
+    if (maxXExtend >= 0 && maxXExtend !== minXExtend) {
+      xExtend = maxXExtend;
+    } else if (maxXExtend >= 0 && maxXExtend === minXExtend) {
+      xExtend = maxXExtend + Math.round(image.width * 0.2);
+    }
+
+    if (maxYExtend >= 0 && maxYExtend !== minYExtend) {
+      yExtend = maxYExtend;
+    } else if (maxYExtend >= 0 && maxYExtend === minYExtend) {
+      yExtend = maxYExtend + Math.round(image.height * 0.15);
+    }
+
+
+    const extendLeft = xExtend - leftExtend;
+    const extendRight = xExtend - rightExtend;
+    const extendTop = yExtend - topExtend;
+    const extendBottom = yExtend - bottomExtend;
+
+    const newWrapperHeight = wrapperHeight + extendBottom + extendTop;
+    const newWrapperWidth = wrapperWidth + extendLeft + extendRight;
+
+    this.canvasWrapper.style.width = newWrapperWidth + 'px';
+    this.canvasWrapper.style.height = newWrapperHeight + 'px';
+
+    this.canvasWrapper.style.top = wrapperTop - extendTop + 'px';
+    this.canvasWrapper.style.left = wrapperLeft - extendLeft + 'px';
+
+    let newLeft = 0, newTop = 0;
+    // 如果只是扩展现有的
+    if (extendLeft < left) {
+      newLeft = extendLeft - left;
+      this.fabricWrapperEl!.style.left = newLeft + 'px';
+    } else if (extendLeft >= left) {
+      const newExtend = extendLeft - left;
+      this.fabricWrapperEl!.style.left = '0'
+      this.imageEditor!.transformX(newExtend);
+    }
+
+    if (extendTop < top) {
+      newTop = extendTop - top;
+      this.fabricWrapperEl!.style.top = newTop + 'px';
+    } else if (extendTop >= top) {
+      const newExtend = extendTop - top;
+      this.fabricWrapperEl!.style.top = '0'
+      this.imageEditor!.transformY(newExtend);
+    }
+
+    const extendWidth = newWrapperWidth - (canvasWidth - left);
+    const extendHeight = newWrapperHeight - (canvasHeight - top);
+
+    const newCanvasWidth = extendWidth > 0 ? canvasWidth + extendWidth : canvasWidth;
+    const newCanvasHeight = extendHeight > 0 ? canvasHeight + extendHeight : canvasHeight
+
+    this.imageEditor!.setCanvasDims(newCanvasWidth, newCanvasHeight);
+
+    this.fixComponentsPosition();
   }
 
   flipHorizontal() {
@@ -1088,21 +1292,21 @@ export default class ElementManager {
     prop.canvasWrapperHeight = this.canvasWrapper.style.height;
     prop.canvasWrapperWidth = this.canvasWrapper.style.width;
 
-    prop.topResizer = this.topResizer;
-    prop.topResizerLeft = this.topResizer.style.left;
-    prop.topResizerTop = this.topResizer.style.top;
+    prop.topResizer = this.northResizer;
+    prop.topResizerLeft = this.northResizer.style.left;
+    prop.topResizerTop = this.northResizer.style.top;
 
-    prop.leftResizer = this.leftResizer;
-    prop.leftResizerLeft = this.leftResizer.style.left;
-    prop.leftResizerTop = this.leftResizer.style.top;
+    prop.leftResizer = this.westResizer;
+    prop.leftResizerLeft = this.westResizer.style.left;
+    prop.leftResizerTop = this.westResizer.style.top;
 
-    prop.bottomResizer = this.bottomResizer;
-    prop.bottomResizerLeft = this.bottomResizer.style.left;
-    prop.bottomResizerTop = this.bottomResizer.style.top;
+    prop.bottomResizer = this.southResizer;
+    prop.bottomResizerLeft = this.southResizer.style.left;
+    prop.bottomResizerTop = this.southResizer.style.top;
 
-    prop.rightResizer = this.rightResizer;
-    prop.rightResizerLeft = this.rightResizer.style.left;
-    prop.rightResizerTop = this.rightResizer.style.top;
+    prop.rightResizer = this.eastResizer;
+    prop.rightResizerLeft = this.eastResizer.style.left;
+    prop.rightResizerTop = this.eastResizer.style.top;
 
     prop.toolbar = this.toolbar;
     prop.toolbarLeft = this.toolbar.style.left;
@@ -1250,31 +1454,59 @@ export default class ElementManager {
       this.canvasWrapper.style.top = cwTop + 'px';
     }
 
-    // 12是拉伸按钮的大小，6是拉伸大小的一半，用来做偏移用
-    const topResizerTop = cwTop - 12;
-    const topResizerLeft = cwLeft + wrapperWidth / 2 - 6;
-    this.topResizer.style.top = topResizerTop + 'px';
-    this.topResizer.style.left = topResizerLeft + 'px';
-
-    const rightResizerTop = cwTop + wrapperHeight / 2 - 6;
-    const rightResizerLeft = cwLeft + wrapperWidth;
-    this.rightResizer.style.top = rightResizerTop + 'px';
-    this.rightResizer.style.left = rightResizerLeft + 'px';
-
-    const bottomResizerTop = cwTop + wrapperHeight;
-    const bottomResizerLeft = cwLeft + wrapperWidth / 2 - 6;
-    this.bottomResizer.style.top = bottomResizerTop + 'px';
-    this.bottomResizer.style.left = bottomResizerLeft + 'px';
-
-    const leftResizerTop = cwTop + wrapperHeight / 2 - 6;
-    const leftResizerLeft = cwLeft - 12;
-    this.leftResizer.style.top = leftResizerTop + 'px';
-    this.leftResizer.style.left = leftResizerLeft + 'px';
-
-    this.adjustToolbarPosition();
+    this.fixComponentsPosition();
   }
 
-  adjustToolbarPosition() {
+  fixComponentsPosition() {
+    this.fixToolbarPosition();
+    this.fixResizerPosition();
+  }
+
+  fixResizerPosition() {
+
+    const cwTop = pxielToNumber(this.canvasWrapper.style.top)
+    const cwLeft = pxielToNumber(this.canvasWrapper.style.left)
+    const wrapperWidth = pxielToNumber(this.canvasWrapper.style.width)
+    const wrapperHeight = pxielToNumber(this.canvasWrapper.style.height)
+
+    // 12是拉伸按钮的大小，6是拉伸大小的一半，用来做偏移用
+    const northResizerTop = cwTop - 12;
+    const northResizerLeft = cwLeft + wrapperWidth / 2 - 6;
+
+    const westResizerTop = cwTop + wrapperHeight / 2 - 6;
+    const westResizerLeft = cwLeft - 12;
+
+    const southResizerTop = cwTop + wrapperHeight;
+    const southResizerLeft = cwLeft + wrapperWidth / 2 - 6;
+    const eastResizerTop = cwTop + wrapperHeight / 2 - 6;
+    const eastResizerLeft = cwLeft + wrapperWidth;
+
+    this.northResizer.style.top = northResizerTop + 'px';
+    this.northResizer.style.left = northResizerLeft + 'px';
+
+    this.northWestResizer.style.top = northResizerTop + 'px';
+    this.northWestResizer.style.left = westResizerLeft + 'px';
+
+    this.westResizer.style.top = westResizerTop + 'px';
+    this.westResizer.style.left = westResizerLeft + 'px';
+
+    this.southWestResizer.style.top = southResizerTop + 'px';
+    this.southWestResizer.style.left = westResizerLeft + 'px';
+
+    this.southResizer.style.top = southResizerTop + 'px';
+    this.southResizer.style.left = southResizerLeft + 'px';
+
+    this.southEastResizer.style.top = southResizerTop + 'px';
+    this.southEastResizer.style.left = eastResizerLeft + 'px';
+
+    this.eastResizer.style.top = eastResizerTop + 'px';
+    this.eastResizer.style.left = eastResizerLeft + 'px';
+
+    this.northEastResizer.style.top = northResizerTop + 'px';
+    this.northEastResizer.style.left = eastResizerLeft + 'px';
+  }
+
+  fixToolbarPosition() {
     const top = pxielToNumber(this.canvasWrapper.style.top);
     const left = pxielToNumber(this.canvasWrapper.style.left);
     const width = pxielToNumber(this.canvasWrapper.style.width);
@@ -1298,11 +1530,12 @@ export default class ElementManager {
     const pos = getAbsolutePosition(currEle);
     const optionBar = this.optionBar;
     optionBar.style.display = 'inline-block';
-    optionBar.style.left = Math.round(pos.x - 116) + 'px';
+    optionBar.style.left = Math.round(pos.x - 130) + 'px';
     optionBar.style.top = Math.round(pos.y + 36) + 'px';
   }
 
   getCanvasAreaInfo() {
+
     // 完整的canvas区域，包括可见与不可见的区域
     const canvasWidth = toNumber(this.fabricWrapperEl!.style.width.replace('px', ''));
     const canvasHeight = toNumber(this.fabricWrapperEl!.style.height.replace('px', ''));
@@ -1364,17 +1597,17 @@ export default class ElementManager {
   }
 
   hideResizer() {
-    this.topResizer.style.display = 'none';
-    this.leftResizer.style.display = 'none';
-    this.bottomResizer.style.display = 'none';
-    this.rightResizer.style.display = 'none';
+    this.northResizer.style.display = 'none';
+    this.westResizer.style.display = 'none';
+    this.southResizer.style.display = 'none';
+    this.eastResizer.style.display = 'none';
   }
 
   showResizer() {
-    this.topResizer.style.display = 'block';
-    this.leftResizer.style.display = 'block';
-    this.bottomResizer.style.display = 'block';
-    this.rightResizer.style.display = 'block';
+    this.northResizer.style.display = 'block';
+    this.westResizer.style.display = 'block';
+    this.southResizer.style.display = 'block';
+    this.eastResizer.style.display = 'block';
   }
 
   calculateCanvasInfo() {
@@ -1389,6 +1622,27 @@ export default class ElementManager {
     info.canvasBackgroundImage = canvas.backgroundImage;
     info.objects = canvas.getObjects();
     return info;
+  }
+
+  resetImageEditor() {
+    const canvas = this.imageEditor!.getCanvas()
+    const image = canvas.backgroundImage!;
+    const width = image.width;
+    const height = image.height;
+    this.imageEditor!.setCanvasDims(width, height);
+    image.setXY(new Point(0, 0));
+    const objects = canvas.getObjects()
+    for (const o of objects) {
+      canvas.remove(o);
+    }
+    this.fabricWrapperEl!.style.width = '0';
+    this.fabricWrapperEl!.style.height = '0';
+    this.canvasWrapper.style.width = canvas.width + 'px';
+    this.canvasWrapper.style.height = canvas.height + 'px';
+    this.canvasWrapper.style.left = this.imageEditor!.initWrapperLeft;
+    this.canvasWrapper.style.top = this.imageEditor!.initWrapperTop;
+    this.fixComponentsPosition();
+    this.imageEditor!.getHistory().clearRedoStack();
   }
 
   downloadAreaImage() {

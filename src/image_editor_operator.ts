@@ -7,9 +7,13 @@ export interface ImageEditorOperator {
 }
 
 export interface OperatorProps {
+
   setOperatorSize(width: number): void;
+
   setOperatorColor(color: string): void;
+
   getOperatorSize(): number;
+
   getOperatorColor(): string;
 }
 

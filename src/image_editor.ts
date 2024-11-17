@@ -9,6 +9,7 @@ import RectangleOperator from "./operator/rect_operator";
 import TextOperator from "./operator/text_operator";
 import OperationHistory from "./history";
 import { Screenshoter } from "./screenshoter";
+import { ImageEditorShortcutManager } from "./shortcut_manager";
 
 export default class ImageEditor {
 
@@ -17,8 +18,6 @@ export default class ImageEditor {
   private screenshoter: Screenshoter;
 
   private history: OperationHistory;
-
-  private current: FabricObject | null = null;
 
   private operatorType: OperatorType = OperatorType.NONE;
 
@@ -37,6 +36,12 @@ export default class ImageEditor {
   private textOperator: TextOperator;
 
   private operatorMap = new Map();
+
+  readonly initWrapperLeft: string;
+
+  readonly initWrapperTop: string;
+
+  private shortcutManager: ImageEditorShortcutManager;
 
   constructor(canvas: Canvas, elementManager: ElementManager) {
     this.elementManager = elementManager;
@@ -57,6 +62,10 @@ export default class ImageEditor {
     this.operatorMap.set(OperatorType.MOSAIC, this.mosaicOperator);
     this.canvas.selection = false;
     this.screenshoter = new Screenshoter();
+    const canvasWrapper = elementManager.canvasWrapper;
+    this.initWrapperLeft = canvasWrapper.style.left;
+    this.initWrapperTop = canvasWrapper.style.top;
+    this.shortcutManager = new ImageEditorShortcutManager(this);
   }
 
   init() {
@@ -82,10 +91,6 @@ export default class ImageEditor {
     this.canvas.on('mouse:down:before', textOperator.handleMouseDownBefore.bind(textOperator))
     this.canvas.on('mouse:down', textOperator.handleMouseDown.bind(textOperator));
     this.canvas.on('mouse:up', textOperator.handleMouseUp.bind(textOperator));
-  }
-
-  setCurrent(current: FabricObject | null) {
-    this.current = current;
   }
 
   getCanvas() {
@@ -229,6 +234,18 @@ export default class ImageEditor {
     return {
       wrapper: wrapperInfo,
       canvas: canvasInfo
+    }
+  }
+
+  destory() {
+    this.shortcutManager.destroy();
+  }
+
+  removeActiveObjects() {
+    const active = this.canvas!.getActiveObject();
+    if (active) {
+      this.canvas.remove(active);
+      this.history.recordRemoveAction(active);
     }
   }
 }
