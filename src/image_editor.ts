@@ -145,6 +145,20 @@ export default class ImageEditor {
     this.canvas.setDimensions({ height, width });
   }
 
+  transform(offsetX: number, offsetY: number) {
+    const backgroundImage = this.canvas.backgroundImage!;
+    const x = backgroundImage.getX();
+    const y = backgroundImage.getY();
+    backgroundImage.setXY(new Point(x + offsetX, y + offsetY));
+    const objs = this.canvas.getObjects();
+    for (const obj of objs) {
+      obj.left += offsetX;
+      obj.top += offsetY;
+      obj.setCoords();
+    }
+    this.canvas.renderAll();
+  }
+
   transformX(fabricLeft: number) {
     const x = this.canvas.backgroundImage!.getX()
     this.canvas.backgroundImage?.setX(x + fabricLeft)

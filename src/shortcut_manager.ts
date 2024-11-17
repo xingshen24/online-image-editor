@@ -18,7 +18,6 @@ export class ImageEditorShortcutManager {
     if (event.key === 'Delete' && noControlKey) {
       this.imageEditor.removeActiveObjects();
     } else if (ctrlOnly) {
-      console.log(this.imageEditor)
       switch (event.key) {
         case 'z':
           this.imageEditor!.getHistory().undo();

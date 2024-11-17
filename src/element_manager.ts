@@ -36,6 +36,9 @@ const toNumber = (str: string) => {
   return Number(str);
 }
 
+type ResizerType = 'north' | 'northwest' | 'west' | 'southwest' | 'south' |
+  'southeast' | 'east' | 'northeast' | null
+
 export default class ElementManager {
 
   public static HAS_CURSOR_CSS_ADDED = false;
@@ -60,27 +63,33 @@ export default class ElementManager {
   private eastResizer: HTMLDivElement;
   private northEastResizer: HTMLDivElement;
 
+  private resizingType: ResizerType = null;
+  private resizeStartInfo = {
+    x: NaN,
+    y: NaN,
+    left: NaN,
+    top: NaN,
+    width: NaN,
+    height: NaN,
+    fwTop: NaN,
+    fwLeft: NaN
+  }
+
   private topInResize: boolean = false;
+
   // fw Fabric Wrapper
-  private topChange = { y: NaN, top: NaN, height: NaN, fwTop: NaN, changeHeight: NaN };
-  private topStartFunc: (e: MouseEvent) => void = DEFAULT_FUNCTION;
-  private topMoveFunc: (e: MouseEvent) => void = DEFAULT_FUNCTION;
-  private topFinsihFunc: (e: MouseEvent) => void = DEFAULT_FUNCTION;
-  private leftInResize: boolean = false;
-  private leftChange = { x: NaN, left: NaN, width: NaN, fwLeft: NaN, changeWidth: NaN };
-  private leftStartFunc: (e: MouseEvent) => void = DEFAULT_FUNCTION;
-  private leftMoveFunc: (e: MouseEvent) => void = DEFAULT_FUNCTION;
-  private leftFinishFunc: (e: MouseEvent) => void = DEFAULT_FUNCTION;
-  private bottomInResize: boolean = false;
-  private bottomChange = { y: NaN, height: NaN, top: NaN, leftRightTop: NaN, changeHeight: NaN };
-  private bottomStartFunc: (e: MouseEvent) => void = DEFAULT_FUNCTION;
-  private bottomMoveFunc: (e: MouseEvent) => void = DEFAULT_FUNCTION;
-  private bottomFinishFunc: (e: MouseEvent) => void = DEFAULT_FUNCTION;
-  private rightInResize: boolean = false;
-  private rightChange = { x: NaN, width: NaN, left: NaN, topBottomLeft: NaN, changeWidth: NaN };
-  private rightStartFunc: (e: MouseEvent) => void = DEFAULT_FUNCTION;
-  private rightMoveFunc: (e: MouseEvent) => void = DEFAULT_FUNCTION;
-  private rightFinishFunc: (e: MouseEvent) => void = DEFAULT_FUNCTION;
+  private northStartFn: (e: MouseEvent) => void = DEFAULT_FUNCTION;
+  private northWestStartFn: (e: MouseEvent) => void = DEFAULT_FUNCTION;
+  private westStartFn: (e: MouseEvent) => void = DEFAULT_FUNCTION;
+  private southWestStartFn: (e: MouseEvent) => void = DEFAULT_FUNCTION;
+  private southStartFn: (e: MouseEvent) => void = DEFAULT_FUNCTION;
+  private southEastStartFn: (e: MouseEvent) => void = DEFAULT_FUNCTION;
+  private eastStartFn: (e: MouseEvent) => void = DEFAULT_FUNCTION;
+  private northEastStartFn: (e: MouseEvent) => void = DEFAULT_FUNCTION;
+
+  private resizeMoveFn: (e: MouseEvent) => void = DEFAULT_FUNCTION;
+  private resizeFinishFn: (e: MouseEvent) => void = DEFAULT_FUNCTION;
+
   private squareSize: number = NaN;
 
   readonly wrapper: HTMLDivElement;
@@ -269,9 +278,13 @@ export default class ElementManager {
     ElementManager.HAS_CURSOR_CSS_ADDED = true;
 
     this.northResizer.classList.add('north-cursor-resize');
+    this.northWestResizer.classList.add('north-west-cursor-resize');
     this.westResizer.classList.add('west-cursor-resize');
+    this.southWestResizer.classList.add('south-west-cursor-resize');
     this.southResizer.classList.add('south-cursor-resize');
+    this.southEastResizer.classList.add('south-east-cursor-resize');
     this.eastResizer.classList.add('east-cursor-resize');
+    this.northEastResizer.classList.add('north-east-cursor-resize');
 
     this.screenshotResizer.north.classList.add('north-cursor-resize');
     this.screenshotResizer.northWest.classList.add('north-west-cursor-resize');
@@ -591,12 +604,12 @@ export default class ElementManager {
   }
 
   hideToolbar() {
-    this.toolbar.style.display = 'none';
+    this.toolbar.style.visibility = 'hidden';
     this.hideOptionBar();
   }
 
   showToolbar() {
-    this.toolbar.style.display = 'block';
+    this.toolbar.style.visibility = 'visible';
     const optType = this.imageEditor!.getOperatorType();
     // 对于要显示的toolbar，直接显示
     if (optType != OperatorType.NONE) {
@@ -609,335 +622,191 @@ export default class ElementManager {
 
     const that = this;
 
-    /**********************    开始处理头部的拉伸箭头      *****************/
-    this.northResizer.removeEventListener('mousedown', this.topStartFunc)
-    window.removeEventListener('mousemove', this.topMoveFunc);
-    window.removeEventListener('mouseup', this.topFinsihFunc);
+    this.northStartFn = (event: MouseEvent) => { that.resizeStart('north', event); }
+    this.northWestStartFn = (event: MouseEvent) => { that.resizeStart('northwest', event); }
+    this.westStartFn = (event: MouseEvent) => { that.resizeStart('west', event); }
+    this.southWestStartFn = (event: MouseEvent) => { that.resizeStart('southwest', event); }
+    this.southStartFn = (event: MouseEvent) => { that.resizeStart('south', event); }
+    this.southEastStartFn = (event: MouseEvent) => { that.resizeStart('southeast', event); }
+    this.eastStartFn = (event: MouseEvent) => { that.resizeStart('east', event); }
+    this.northEastStartFn = (event: MouseEvent) => { that.resizeStart('northeast', event); }
 
-    this.topStartFunc = (event: MouseEvent) => {
-      that.topInResize = true;
-      let fwTop = this.fabricWrapperEl!.style.top.replace('px', '');
-      if (fwTop == '') {
-        fwTop = '0';
+    this.resizeMoveFn = (event: MouseEvent) => {
+      if (this.resizingType === null) {
+        return
       }
-      const top = this.canvasWrapper.style.top.replace('px', '');
-      const height = this.canvasWrapper.style.height.replace('px', '');
-      that.topChange.y = event.pageY;
-      that.topChange.top = Number(top);
-      that.topChange.height = Number(height);
-      that.topChange.fwTop = Number(fwTop);
-      that.topChange.changeHeight = 0;
-      const body = document.querySelector('body');
-      body!.style.cursor = 'n-resize'
-      that.hideToolbar();
+      that.onResizeMove(event);
+      that.fixResizerPosition();
     }
 
-    this.topMoveFunc = (event: MouseEvent) => {
-      if (!that.topInResize) return;
-      that.changeHeightFromTop(event.pageY);
-    }
-    this.topFinsihFunc = (_event: MouseEvent) => {
-      if (!that.topInResize) {
+    this.resizeFinishFn = (_event: MouseEvent) => {
+      if (this.resizingType === null) {
         return;
       }
       that.finishResize();
       that.showToolbar();
     }
 
-    this.northResizer.addEventListener('mousedown', this.topStartFunc)
-    window.addEventListener('mousemove', this.topMoveFunc);
-    window.addEventListener('mouseup', this.topFinsihFunc);
+    this.northResizer.addEventListener('mousedown', this.northStartFn);
+    this.northWestResizer.addEventListener('mousedown', this.northWestStartFn);
+    this.westResizer.addEventListener('mousedown', this.westStartFn);
+    this.southWestResizer.addEventListener('mousedown', this.southWestStartFn);
+    this.southResizer.addEventListener('mousedown', this.southStartFn);
+    this.southEastResizer.addEventListener('mousedown', this.southEastStartFn);
+    this.eastResizer.addEventListener('mousedown', this.eastStartFn);
+    this.northEastResizer.addEventListener('mousedown', this.northEastStartFn);
 
-    /**********************    开始处理左侧的拉伸箭头      *****************/
-    this.westResizer.removeEventListener('mousedown', this.leftStartFunc)
-    window.removeEventListener('mousemove', this.leftMoveFunc);
-    window.removeEventListener('mouseup', this.leftFinishFunc);
-
-    this.leftStartFunc = (event: MouseEvent) => {
-      that.leftInResize = true;
-      let fwLeft = this.fabricWrapperEl!.style.left.replace('px', '');
-      if (fwLeft == '') {
-        fwLeft = '0';
-      }
-      let left = this.canvasWrapper.style.left.replace('px', '');
-      const width = this.canvasWrapper.style.width.replace('px', '')
-      that.leftChange.x = event.pageX;
-      that.leftChange.left = Number(left);
-      that.leftChange.width = Number(width);
-      that.leftChange.fwLeft = Number(fwLeft);
-      that.leftChange.changeWidth = 0;
-      const body = document.querySelector('body');
-      body!.style.cursor = 'w-resize'
-      that.hideToolbar();
-    }
-
-    this.leftMoveFunc = (event: MouseEvent) => {
-      if (!that.leftInResize) return;
-      that.changeHeightFromLeft(event.pageX);
-    }
-    this.leftFinishFunc = (_event: MouseEvent) => {
-      if (!that.leftInResize) return;
-      that.finishResize();
-      that.showToolbar();
-    }
-
-    this.westResizer.addEventListener('mousedown', this.leftStartFunc)
-    window.addEventListener('mousemove', this.leftMoveFunc);
-    window.addEventListener('mouseup', this.leftFinishFunc);
-
-    /**********************    开始处理底部的拉伸箭头      *****************/
-
-    this.southResizer.removeEventListener('mousedown', this.bottomStartFunc)
-    window.removeEventListener('mousemove', this.bottomMoveFunc);
-    window.removeEventListener('mouseup', this.bottomFinishFunc);
-
-    this.bottomStartFunc = (event: MouseEvent) => {
-      that.bottomInResize = true;
-      const height = this.canvasWrapper.style.height.replace('px', '');
-      const top = this.southResizer.style.top.replace('px', '');
-      const leftRightTop = this.westResizer.style.top.replace('px', '');
-      that.bottomChange.height = Number(height);
-      that.bottomChange.y = event.pageY;
-      that.bottomChange.top = Number(top);
-      that.bottomChange.leftRightTop = Number(leftRightTop);
-      that.bottomChange.changeHeight = 0;
-      const body = document.querySelector('body');
-      body!.style.cursor = 's-resize'
-      that.hideToolbar();
-    }
-
-    this.bottomMoveFunc = (event: MouseEvent) => {
-      if (!that.bottomInResize) return;
-      that.changeHeightFromBottom(event.pageY);
-    }
-    this.bottomFinishFunc = (_event: MouseEvent) => {
-      if (!that.bottomInResize) return;
-      that.finishResize();
-      that.showToolbar();
-    }
-
-    this.southResizer.addEventListener('mousedown', this.bottomStartFunc)
-    window.addEventListener('mousemove', this.bottomMoveFunc);
-    window.addEventListener('mouseup', this.bottomFinishFunc);
-
-    /**********************    开始处理右侧的拉伸箭头      *****************/
-
-    this.southResizer.removeEventListener('mousedown', this.rightStartFunc)
-    window.removeEventListener('mousemove', this.rightMoveFunc);
-    window.removeEventListener('mouseup', this.rightFinishFunc);
-
-    this.rightStartFunc = (event: MouseEvent) => {
-      that.rightInResize = true;
-      const width = this.canvasWrapper.style.width.replace('px', '');
-      const left = this.eastResizer.style.left.replace('px', '');
-      const topBottomLeft = this.northResizer.style.left.replace('px', '');
-      that.rightChange.width = Number(width)
-      that.rightChange.x = event.pageX;
-      that.rightChange.left = Number(left);
-      that.rightChange.topBottomLeft = Number(topBottomLeft);
-      that.rightChange.changeWidth = 0;
-      const body = document.querySelector('body');
-      body!.style.cursor = 'e-resize'
-      that.hideToolbar();
-    }
-
-    this.rightMoveFunc = (event: MouseEvent) => {
-      if (!that.rightInResize) return;
-      that.changeWidthFromRight(event.pageX);
-    }
-    this.rightFinishFunc = (_event: MouseEvent) => {
-      if (!that.rightInResize) return;
-      that.finishResize();
-      that.showToolbar();
-    }
-
-    this.eastResizer.addEventListener('mousedown', this.rightStartFunc)
-    window.addEventListener('mousemove', this.rightMoveFunc);
-    window.addEventListener('mouseup', this.rightFinishFunc);
-
-    /**********************    拉伸箭头的部分处理结束      *****************/
+    document.addEventListener('mousemove', this.resizeMoveFn);
+    document.addEventListener('mouseup', this.resizeFinishFn);
   }
 
-  changeHeightFromLeft(pageX: number) {
-    const currentX = this.leftChange.x;
-    const oldLeft = this.leftChange.left;
-    const oldWidth = this.leftChange.width;
+  resizeStart(type: ResizerType, event: MouseEvent) {
+    const style = this.canvasWrapper.style;
+    const fwStyle = this.fabricWrapperEl!.style;
+    this.resizingType = type;
+    this.resizeStartInfo = {
+      x: event.pageX,
+      y: event.pageY,
+      left: pxielToNumber(style.left),
+      top: pxielToNumber(style.top),
+      height: pxielToNumber(style.height),
+      width: pxielToNumber(style.width),
+      fwLeft: pxielToNumber(fwStyle.left),
+      fwTop: pxielToNumber(fwStyle.top)
+    }
+    this.hideToolbar();
+  }
 
-    // 用当前Y值，减去开始的Y值，得到的一段长度是top增加的值，和高度减少的值
-    let changedWidth = pageX - currentX;
-    let newWidth = oldWidth - changedWidth;
+  onResizeMove(event: MouseEvent) {
+    if (this.resizingType === null) {
+      return
+    }
+    const start = this.resizeStartInfo;
+    const x = event.pageX;
+    const y = event.pageY;
 
-    if (newWidth < 80) {
-      newWidth = 80;
-      changedWidth = oldWidth - newWidth;
+    const type = this.resizingType;
+    const diffX = type !== 'north' && type !== 'south' ? x - start.x : 0;
+    const diffY = type !== 'east' && type !== 'west' ? y - start.y : 0;
+
+    let changeX = diffX, changeY = diffY;
+
+    const isTopResizer = type === 'north' || type === 'northeast' || type === 'northwest';
+    const isLeftResizer = type === 'west' || type === 'southwest' || type === 'northwest';
+    const isBottomResizer = type === 'south' || type === 'southeast' || type === 'southwest';
+    const isRightResizer = type === 'east' || type === 'northeast' || type === 'southeast';
+
+    let newTop = start.top, newFwTop = start.fwTop;
+    let newLeft = start.left, newFwLeft = start.fwLeft;
+    let newHeight = start.height, newWidth = start.width;
+
+    if (isTopResizer && changeY != 0) {
+      newHeight = start.height - changeY;
+      if (newHeight < 80) {
+        newHeight = 80;
+        changeY = start.height - newHeight;
+      }
+      newTop = start.top + changeY;
+      newFwTop = start.fwTop - changeY;
+    } else if (isBottomResizer && changeY != 0) {
+      newHeight = start.height + changeY;
+      if (newHeight < 80) {
+        newHeight = 80;
+      }
     }
 
-    const newLeft = Number(oldLeft) + changedWidth;
-    const newFwLeft = this.leftChange.fwLeft - changedWidth;
+    if (isLeftResizer && changeX != 0) {
+      newWidth = start.width - changeX;
+      if (newWidth < 80) {
+        newWidth = 80;
+        changeX = start.width - newWidth;
+      }
+      newLeft = start.left + changeX;
+      newFwLeft = start.fwLeft - changeX;
+    } else if (isRightResizer && changeX != 0) {
+      newWidth = start.width + changeX;
+      if (newWidth < 80) {
+        newWidth = 80;
+      }
+    }
 
     this.canvasWrapper.style.width = newWidth + 'px';
-    this.canvasWrapper.style.left = newLeft + 'px';
-    this.westResizer.style.left = (newLeft - this.squareSize) + 'px';
-    this.fabricWrapperEl!.style.left = newFwLeft + 'px';
-    this.leftChange.changeWidth = changedWidth;
-    this.fixResizerPosition();
-  }
-
-  changeHeightFromTop(pageY: number) {
-    const currentY = this.topChange.y;
-    const oldTop = this.topChange.top;
-    const oldHeight = this.topChange.height;
-
-    // 用当前Y值，减去开始的Y值，得到的一段长度是top增加的值，和高度减少的值
-    let changedHeight = pageY - currentY;
-    let newHeight = oldHeight - changedHeight;
-    if (newHeight < 80) {
-      newHeight = 80;
-      changedHeight = oldHeight - newHeight;
-    }
-
-    const newTop = Number(oldTop) + changedHeight;
-    const newFwTop = this.topChange.fwTop - changedHeight;
-
     this.canvasWrapper.style.height = newHeight + 'px';
     this.canvasWrapper.style.top = newTop + 'px';
-    this.northResizer.style.top = (newTop - this.squareSize) + 'px';
-    this.fabricWrapperEl!.style.top = (newFwTop) + 'px';
-    this.topChange.changeHeight = changedHeight;
-
-    this.fixResizerPosition();
-  }
-
-  changeHeightFromBottom(pageY: number) {
-    const currentY = this.bottomChange.y;
-    const oldHeight = this.bottomChange.height;
-    let changedHeight = pageY - currentY;
-    let newHeight = oldHeight + changedHeight;
-    // 给个最小值
-    if (newHeight < 80) {
-      newHeight = 80;
-      changedHeight = newHeight - oldHeight;
-    }
-    this.canvasWrapper.style.height = newHeight + 'px';
-    this.bottomChange.changeHeight = changedHeight;
-    this.fixResizerPosition();
-  }
-
-  changeWidthFromRight(pageX: number) {
-    const currentY = this.rightChange.x;
-    const oldWidth = this.rightChange.width;
-    let changedWidth = pageX - currentY;
-    let newWidth = Number(oldWidth) + changedWidth;
-    if (newWidth < 80) {
-      newWidth = 80;
-      changedWidth = newWidth - oldWidth;
-    }
-    const newLeft = this.rightChange.left + changedWidth;
-    this.canvasWrapper.style.width = newWidth + 'px';
-    this.eastResizer.style.left = newLeft + 'px';
-    // bottom和top也要跟着同步改变
-    this.northResizer.style.left = this.rightChange.topBottomLeft + (changedWidth / 2) + 'px';
-    this.southResizer.style.left = this.rightChange.topBottomLeft + (changedWidth / 2) + 'px';
-    this.rightChange.changeWidth = changedWidth;
-
-    this.fixResizerPosition();
+    this.canvasWrapper.style.left = newLeft + 'px';
+    this.fabricWrapperEl!.style.top = newFwTop + 'px';
+    this.fabricWrapperEl!.style.left = newFwLeft + 'px';
   }
 
   finishResize() {
     const body = document.querySelector('body');
     body!.style.cursor = 'default'
-    if (this.topInResize) {
-      this.topInResize = false;
-      this.expandTopToBaseMap();
-    }
-    if (this.bottomInResize) {
-      this.bottomInResize = false;
-      this.expandBottomToBaseMap();
-    }
-    if (this.leftInResize) {
-      this.leftInResize = false;
-      this.expandLeftToBaseMap();
-    }
-    if (this.rightInResize) {
-      this.rightInResize = false;
-      this.expandRightToBaseMap();
+    if (this.resizingType != null) {
+      this.resizingType = null;
+      this.adaptCanvasToViewport();
     }
   }
 
-  expandTopToBaseMap() {
-    let fabricTopStr = this.fabricWrapperEl?.style.top.replace('px', '');
-    let fabricHeightStr = this.fabricWrapperEl?.style.height.replace('px', '');
-    if (fabricTopStr == '') {
-      fabricTopStr = '0';
-    }
-    const fabricTop = Number(fabricTopStr);
-    const fabricHeight = Number(fabricHeightStr);
-    // 小于0不用考虑，大于0要考虑，将大于0部分的宽度扩展出来
-    if (fabricTop > 0) {
-      this.fabricWrapperEl!.style.top = '0';
-      const newHeight = fabricHeight + fabricTop;
-      this.imageEditor!.setCanvasHeight(newHeight);
-      this.imageEditor!.transformY(fabricTop);
-    }
-  }
+  adaptCanvasToViewport() {
 
-  expandLeftToBaseMap() {
-    let fabricLeftStr = this.fabricWrapperEl?.style.left.replace('px', '');
-    let fabricWidthStr = this.fabricWrapperEl?.style.width.replace('px', '');
-    if (fabricLeftStr == '') {
-      fabricLeftStr = '0';
-    }
-    const fabricLeft = Number(fabricLeftStr);
-    const fabricWidth = Number(fabricWidthStr);
-    // 小于0不用考虑，大于0要考虑，将大于0部分的宽度扩展出来
-    if (fabricLeft > 0) {
-      this.fabricWrapperEl!.style.left = '0';
-      const newWidth = fabricWidth + fabricLeft;
-      this.imageEditor!.setCanvasWidth(newWidth);
-      this.imageEditor!.transformX(fabricLeft);
-    }
-  }
+    const imageEditor = this.imageEditor!;
 
-  expandBottomToBaseMap() {
-    let fabricTopStr = this.fabricWrapperEl?.style.top.replace('px', '');
-    if (fabricTopStr == '') {
-      fabricTopStr = '0'
-    }
-    const fabricTop = Number(fabricTopStr);
-    const fabricHeightStr = this.fabricWrapperEl?.style.height.replace('px', '');
-    const fabircHeight = Number(fabricHeightStr);
-    const heightExcludeLeftTop = fabircHeight + fabricTop;
-    const wrapperHeightStr = this.canvasWrapper.style.height.replace('px', '');
-    const wrapperHeight = Number(wrapperHeightStr);
-    let newHeight = fabircHeight;
-    if (heightExcludeLeftTop < wrapperHeight) {
-      const diffHeight = wrapperHeight - heightExcludeLeftTop;
-      newHeight = fabircHeight + diffHeight;
-    }
-    this.imageEditor?.setCanvasHeight(newHeight);
-  }
+    const style = this.fabricWrapperEl!.style;
+    const wrapperStyle = this.canvasWrapper!.style;
 
-  expandRightToBaseMap() {
-    let fabricLeftStr = this.fabricWrapperEl?.style.left.replace('px', '');
-    if (fabricLeftStr == '') {
-      fabricLeftStr = '0';
+    // top left应该都是负数
+    const top = pxielToNumber(style.top);
+    const left = pxielToNumber(style.left);
+    const width = pxielToNumber(style.width);
+    const height = pxielToNumber(style.height);
+
+    const wrapperWidth = pxielToNumber(wrapperStyle.width);
+    const wrapperHeight = pxielToNumber(wrapperStyle.height);
+
+    let newTop = top, newLeft = left;
+    let newWidth = width, newHeight = height;
+    let offsetX = 0, offsetY = 0;
+
+    // top大于0，top要调整为0，否则不变
+    // 高度增加top，并且所有对象向下位移相应的为孩子
+    if (top > 0) {
+      newTop = 0;
+      newHeight = newHeight + top;
+      offsetY = top;
     }
-    const fabricLeft = Number(fabricLeftStr);
-    const fabricWidthStr = this.fabricWrapperEl?.style.width.replace('px', '');
-    // 可以肯定的是Top和left必然是小于0的，大于0的直接扩展了
-    const fabricWidth = Number(fabricWidthStr);
-    // 这里的可见范围不是全部的可见范围，不包括因为left、top是负数而被隐藏的那一部分
-    // 但是包括右边和下边被隐藏的部分
-    const widthExcludeLeftTop = fabricWidth + fabricLeft;
-    const wrapperWidthStr = this.canvasWrapper.style.width.replace('px', '');
-    const wrapperWidth = Number(wrapperWidthStr);
-    // 如果wrapper大于可见区域，那么要计算差值，然后在canvas上加上这个差值
-    let newWidth = fabricWidth;
-    if (widthExcludeLeftTop < wrapperWidth) {
-      const diffWidth = wrapperWidth - widthExcludeLeftTop;
-      newWidth = fabricWidth + diffWidth;
+
+    if (left > 0) {
+      newLeft = 0;
+      newWidth = newWidth + left;
+      offsetX = left;
     }
-    this.imageEditor?.setCanvasWidth(newWidth)
+
+    const hideInRight = newWidth - newLeft - wrapperWidth;
+    if (hideInRight < 0) {
+      newWidth = newWidth + Math.abs(hideInRight);
+    }
+
+    const hideInBottom = newHeight - newTop - wrapperHeight;
+    if (hideInBottom < 0) {
+      newHeight = newHeight + Math.abs(hideInBottom);
+    }
+
+    if (newTop != top) {
+      style.top = newTop + 'px';
+    }
+
+    if (newWidth != width || newHeight != height) {
+      imageEditor.setCanvasDims(newWidth, newHeight);
+    }
+
+    if (offsetX != 0 || offsetY != 0) {
+      imageEditor.transform(offsetX, offsetY);
+    }
+
+    if (newLeft != left || newTop != top) {
+      style.left = newLeft + 'px';
+      style.top = newTop + 'px';
+    }
   }
 
   // 四周如果有白板，就把白板都缩了，其它的不同，相当于只动画板，不动画布
@@ -1657,5 +1526,10 @@ export default class ElementManager {
     link.href = image;
     link.download = 'image.png';
     link.click();
+  }
+
+  destory() {
+    document.removeEventListener('mousemove', this.resizeMoveFn);
+    document.removeEventListener('mouseup', this.resizeFinishFn);
   }
 }
