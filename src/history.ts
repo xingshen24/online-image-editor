@@ -1,7 +1,9 @@
 import { Canvas, Ellipse, FabricObject, Point, TDegree } from "fabric";
 import ImageEditor from "./image_editor";
+import { CanvasDimsRecord, CanvasReshaperAction } from "./undoer/CanvasReshaper";
+import { CanvasSnapshot, CanvasSnapshotAction } from "./undoer/CanvasSnapshot";
 
-interface OperationAction {
+export interface OperationAction {
 
   undo(): void;
 
@@ -98,12 +100,14 @@ class MoveAction implements OperationAction {
   undo(): void {
     this.object.setX(this.previousX);
     this.object.setY(this.previousY);
+    this.object.setCoords();
     this.canvas.renderAll();
   }
 
   redo(): void {
     this.object.setX(this.currentX);
     this.object.setY(this.currentY);
+    this.object.setCoords();
     this.canvas.renderAll();
   }
 
@@ -259,133 +263,32 @@ export class FlipXUndoProps {
   objFlipX: boolean[] = [];
 }
 
-class FlipXAction implements OperationAction {
+class ReverseAction implements OperationAction {
 
-  private canvas: Canvas;
+  protected undoFn: () => void;
 
-  private previous: FlipXUndoProps;
+  protected redoFn: () => void;
 
-  private current: FlipXUndoProps;
+  protected restore = false;
 
-  private hasUndo = false;
-
-  constructor(canvas: Canvas, previous: FlipXUndoProps, current: FlipXUndoProps) {
-    this.canvas = canvas;
-    this.previous = previous;
-    this.current = current;
+  constructor(undo: () => void, redo: () => void) {
+    this.undoFn = undo;
+    this.redoFn = redo;
   }
+
   undo(): void {
-    if (this.hasUndo) {
-      return;
+    if (!this.restore) {
+      this.undoFn();
+      this.restore = true;
     }
-    const previous = this.previous;
-    const bi = previous.backgroundImage;
-    const fabricWrapperEl = previous.fabricWrapperEl;
-    fabricWrapperEl!.style.left = previous.left;
-    bi!.flipX = previous.flipX;
-    bi!.setX(previous.x);
-    for (const index in previous.objs) {
-      const obj = previous.objs[index];
-      const flipX = previous.objFlipX[index];
-      const x = previous.objX[index];
-      obj.flipX = flipX;
-      obj.setX(x);
-      obj.setCoords();
-    }
-    this.canvas.renderAll();
-    this.hasUndo = true;
   }
   redo(): void {
-    if (!this.hasUndo) {
-      return;
+    if (this.restore) {
+      this.redoFn();
+      this.restore = false;
     }
-    const current = this.current;
-    const bi = current.backgroundImage;
-    const fabricWrapperEl = current.fabricWrapperEl;
-    fabricWrapperEl!.style.left = current.left;
-    bi!.flipX = current.flipX;
-    bi!.setX(current.x);
-    for (const index in current.objs) {
-      const obj = current.objs[index];
-      const flipX = current.objFlipX[index];
-      const x = current.objX[index];
-      obj.flipX = flipX;
-      obj.setX(x);
-      obj.setCoords();
-    }
-    this.canvas.renderAll();
-    this.hasUndo = false
   }
-}
 
-export class FlipYUndoProps {
-  fabricWrapperEl?: HTMLDivElement;
-  top: string = '';
-  backgroundImage?: FabricObject;
-  flipY: boolean = false;
-  y: number = 0;
-  objs: FabricObject[] = [];
-  objY: number[] = [];
-  objFlipY: boolean[] = [];
-}
-
-class FlipYAction implements OperationAction {
-
-  private canvas: Canvas;
-
-  private previous: FlipYUndoProps;
-
-  private current: FlipYUndoProps;
-
-  private hasUndo = false;
-
-  constructor(canvas: Canvas, previous: FlipYUndoProps, current: FlipYUndoProps) {
-    this.canvas = canvas;
-    this.previous = previous;
-    this.current = current;
-  }
-  undo(): void {
-    if (this.hasUndo) {
-      return;
-    }
-    const previous = this.previous;
-    const bi = previous.backgroundImage;
-    const fabricWrapperEl = previous.fabricWrapperEl;
-    fabricWrapperEl!.style.top = previous.top;
-    bi!.flipY = previous.flipY;
-    bi!.setY(previous.y);
-    for (const index in previous.objs) {
-      const obj = previous.objs[index];
-      const flipY = previous.objFlipY[index];
-      const y = previous.objY[index];
-      obj.flipY = flipY;
-      obj.setY(y);
-      obj.setCoords();
-    }
-    this.canvas.renderAll();
-    this.hasUndo = true;
-  }
-  redo(): void {
-    if (!this.hasUndo) {
-      return;
-    }
-    const current = this.current;
-    const bi = current.backgroundImage;
-    const fabricWrapperEl = current.fabricWrapperEl;
-    fabricWrapperEl!.style.top = current.top;
-    bi!.flipY = current.flipY;
-    bi!.setY(current.y);
-    for (const index in current.objs) {
-      const obj = current.objs[index];
-      const flipY = current.objFlipY[index];
-      const y = current.objY[index];
-      obj.flipY = flipY;
-      obj.setY(y);
-      obj.setCoords();
-    }
-    this.canvas.renderAll();
-    this.hasUndo = false
-  }
 }
 
 export class CanvasWrapperProps {
@@ -428,203 +331,6 @@ export class FabricCanvasProps {
   objects = [] as FabricObject[]
 }
 
-export class RotateProps {
-  fabricWrapperEl?: HTMLDivElement;
-  canvasWrapper?: HTMLDivElement;
-  imageEditor?: ImageEditor;
-  left: string = '';
-  top: string = '';
-  canvasHeight: number = 0;
-  canvasWidth: number = 0;
-  height: string = '';
-  width: string = '';
-  objs: FabricObject[] = [];
-  objPos: any[] = [];
-  objAngle: TDegree[] = [];
-  canvasWrapperProps?: CanvasWrapperProps;
-}
-
-abstract class CanvasSetAction implements OperationAction {
-  undo(): void {
-
-  }
-  redo(): void {
-  }
-  resetCanvasWrapper(prop: CanvasWrapperProps) {
-    prop.canvasWrapper!.style.top = prop.canvasWrapperTop;
-    prop.canvasWrapper!.style.left = prop.canvasWrapperLeft;
-
-    prop.topResizer!.style.top = prop.topResizerTop;
-    prop.topResizer!.style.left = prop.topResizerLeft;
-
-    prop.leftResizer!.style.top = prop.leftResizerTop;
-    prop.leftResizer!.style.left = prop.leftResizerLeft;
-
-    prop.bottomResizer!.style.top = prop.bottomResizerTop;
-    prop.bottomResizer!.style.left = prop.bottomResizerLeft;
-
-    prop.rightResizer!.style.top = prop.rightResizerTop;
-    prop.rightResizer!.style.left = prop.rightResizerLeft;
-
-    prop.toolbar!.style.top = prop.toolbarTop;
-    prop.toolbar!.style.left = prop.toolbarLeft;
-
-    prop.optionBar!.style.top = prop.optionBarTop;
-    prop.optionBar!.style.left = prop.optionBarLeft;
-  }
-}
-
-class RotationAction extends CanvasSetAction {
-
-  private previous: RotateProps;
-  private current: RotateProps;
-  private canvas: Canvas;
-  private hasUndo = false;
-
-  constructor(canvas: Canvas, previous: RotateProps, current: RotateProps) {
-    super();
-    this.canvas = canvas;
-    this.current = current;
-    this.previous = previous;
-  }
-  undo(): void {
-    if (this.hasUndo) {
-      return;
-    }
-    const previous = this.previous;
-    previous.imageEditor!.setCanvasDims(previous.canvasWidth, previous.canvasHeight);
-    const fwStyle = previous.fabricWrapperEl!.style;
-    fwStyle.left = previous.left;
-    fwStyle.top = previous.top;
-
-    const canvasWrapper = previous.canvasWrapper!;
-    canvasWrapper.style.width = previous.width;
-    canvasWrapper.style.height = previous.height;
-
-    for (const index in previous.objs) {
-      const obj = previous.objs[index];
-      const xy = previous.objPos[index];
-      const angle = previous.objAngle[index];
-      obj.set('angle', angle)
-      obj.setXY(new Point(xy.x, xy.y));
-      obj.setCoords();
-    }
-    this.canvas.renderAll();
-    this.resetCanvasWrapper(previous.canvasWrapperProps!);
-    this.hasUndo = true;
-
-  }
-
-
-  redo(): void {
-    if (!this.hasUndo) {
-      return;
-    }
-    const current = this.current;
-    current.imageEditor!.setCanvasDims(current.canvasWidth, current.canvasHeight);
-    const fwStyle = current.fabricWrapperEl!.style;
-    fwStyle.left = current.left;
-    fwStyle.top = current.top;
-
-    const canvasWrapper = current.canvasWrapper!;
-    canvasWrapper.style.width = current.width;
-    canvasWrapper.style.height = current.height;
-
-    for (const index in current.objs) {
-      const obj = current.objs[index];
-      const xy = current.objPos[index];
-      const angle = current.objAngle[index];
-      obj.set('angle', angle)
-      obj.setXY(new Point(xy.x, xy.y));
-      obj.setCoords();
-    }
-    this.canvas.renderAll();
-    this.resetCanvasWrapper(current.canvasWrapperProps!);
-    this.hasUndo = false;
-  }
-
-}
-
-class CropAction extends CanvasSetAction {
-
-  private previousWrapper: CanvasDetailedProps;
-  private previousCanvas: FabricCanvasProps;
-  private cropWrapper: CanvasDetailedProps;
-  private cropCanvas: FabricCanvasProps;
-  private canvas: Canvas;
-  private hasUndo = false;
-
-  constructor(canvas: Canvas, previousWrapper: CanvasDetailedProps, previousCanvas: FabricCanvasProps
-    , cropWrapper: CanvasDetailedProps, cropCanvas: FabricCanvasProps
-  ) {
-    super();
-    this.canvas = canvas;
-    this.previousWrapper = previousWrapper;
-    this.previousCanvas = previousCanvas;
-    this.cropWrapper = cropWrapper;
-    this.cropCanvas = cropCanvas;
-  }
-
-  undo(): void {
-    if (this.hasUndo) {
-      return;
-    }
-    this.clearCanvas();
-    super.resetCanvasWrapper(this.previousWrapper);
-    const pw = this.previousWrapper;
-    pw.canvasWrapper!.style.width = pw.canvasWrapperWidth;
-    pw.canvasWrapper!.style.height = pw.canvasWrapperHeight;
-    const pc = this.previousCanvas;
-    pc.fabricWrapperEl!.style.left = pc.fabricWrapperElLeft;
-    pc.fabricWrapperEl!.style.top = pc.fabricWrapperElTop;
-    this.canvas.setDimensions({ width: pc.canvasWidth, height: pc.canvasHeight });
-    this.canvas.backgroundColor = pc.canvasBackgroundColor;
-    this.canvas.backgroundImage = pc.canvasBackgroundImage!;
-    for (const object of pc.objects) {
-      this.canvas.add(object);
-      object.setCoords();
-    }
-
-    this.canvas.renderAll();
-    this.hasUndo = true;
-  }
-
-  redo(): void {
-    if (!this.hasUndo) {
-      return;
-    }
-    this.clearCanvas();
-    super.resetCanvasWrapper(this.cropWrapper);
-    const cw = this.cropWrapper;
-    cw.canvasWrapper!.style.width = cw.canvasWrapperWidth;
-    cw.canvasWrapper!.style.height = cw.canvasWrapperHeight;
-    const cc = this.cropCanvas;
-    cc.fabricWrapperEl!.style.left = cc.fabricWrapperElLeft;
-    cc.fabricWrapperEl!.style.top = cc.fabricWrapperElTop;
-    this.canvas.setDimensions({ width: cc.canvasWidth, height: cc.canvasHeight });
-    this.canvas.backgroundColor = cc.canvasBackgroundColor;
-    this.canvas.backgroundImage = cc.canvasBackgroundImage!;
-    for (const object of cc.objects) {
-      this.canvas.add(object);
-      object.setCoords();
-    }
-
-    this.canvas.renderAll();
-    this.hasUndo = false;
-  }
-
-  clearCanvas() {
-    // 不太清楚fabric会不会destory这些对象，所以防止万一起见，还是先删除了
-    const canvas = this.canvas;
-    canvas.backgroundImage = undefined;
-    const objects = canvas.getObjects();
-    for (const obj of objects) {
-      canvas.remove(obj);
-    }
-    this.canvas.clear();
-  }
-}
-
 
 export default class OperationHistory {
 
@@ -632,12 +338,15 @@ export default class OperationHistory {
 
   protected redoStack: OperationAction[];
 
+  protected imageEditor: ImageEditor;
+
   protected canvas: Canvas;
 
-  constructor(canvas: Canvas) {
+  constructor(imageEditor: ImageEditor) {
     this.undoStack = [];
     this.redoStack = [];
-    this.canvas = canvas;
+    this.imageEditor = imageEditor;
+    this.canvas = imageEditor.getCanvas();
   }
 
   getCanvas() {
@@ -700,23 +409,29 @@ export default class OperationHistory {
     this.clearRedoStack();
   }
 
-  recordFlipXAction(previous: FlipXUndoProps, current: FlipXUndoProps) {
-    this.undoStack.push(new FlipXAction(this.canvas, previous, current));
+  recordCropAction() {
     this.clearRedoStack();
   }
 
-  recordFlipYAction(previous: FlipYUndoProps, current: FlipYUndoProps) {
-    this.undoStack.push(new FlipYAction(this.canvas, previous, current));
+  recordDimsChangeAction(previous: CanvasDimsRecord, current: CanvasDimsRecord, fixFn: () => void) {
+    // 没有变化的直接跳过
+    if (previous.equals(current)) {
+      return;
+    }
+    previous.imageEditor = this.imageEditor;
+    current.imageEditor = this.imageEditor;
+    this.undoStack.push(new CanvasReshaperAction(previous, current, fixFn))
     this.clearRedoStack();
   }
 
-  recordRotateAction(previous: RotateProps, current: RotateProps) {
-    this.undoStack.push(new RotationAction(this.canvas, previous, current));
+  // 通过反向操作实现撤销，通常应用于翻转
+  recordReverseAction(undo: () => void, redo: () => void) {
+    this.undoStack.push(new ReverseAction(undo, redo));
     this.clearRedoStack();
   }
 
-  recordCropAction(wrapper: CanvasDetailedProps, canvas: FabricCanvasProps, cropWrapper: CanvasDetailedProps, cropCanvas: FabricCanvasProps) {
-    this.undoStack.push(new CropAction(this.canvas, wrapper, canvas, cropWrapper, cropCanvas));
+  recordSnapshotAction(preivous: CanvasSnapshot, current: CanvasSnapshot, fixFn: () => void) {
+    this.undoStack.push(new CanvasSnapshotAction(preivous, current, fixFn));
     this.clearRedoStack();
   }
 
@@ -724,7 +439,7 @@ export default class OperationHistory {
     this.redoStack = [];
   }
 
-  clearStack(){
+  clearStack() {
     this.redoStack = []
     this.undoStack = []
   }

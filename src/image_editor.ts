@@ -43,7 +43,7 @@ export default class ImageEditor {
   constructor(canvas: Canvas, elementManager: ElementManager) {
     this.elementManager = elementManager;
     this.canvas = canvas;
-    this.history = new OperationHistory(canvas);
+    this.history = new OperationHistory(this);
     this.rectOperator = new RectangleOperator(this);
     this.ellipseOperator = new EllipseOperator(this);
     this.arrowOperator = new ArrowOperator(this);
@@ -236,12 +236,6 @@ export default class ImageEditor {
 
   // 保存状态，后面还原直接用
   storeCanvasState() {
-    const wrapperInfo = this.elementManager.calculateCanvasWrapper();
-    const canvasInfo = this.elementManager.calculateCanvasInfo();
-    return {
-      wrapper: wrapperInfo,
-      canvas: canvasInfo
-    }
   }
 
   destory() {

@@ -1,10 +1,12 @@
 import { FabricObject, Point } from "fabric";
-import { CanvasDetailedProps, FabricCanvasProps, FlipXUndoProps, FlipYUndoProps, RotateProps } from "./history";
+import { CanvasDetailedProps, FabricCanvasProps } from "./history";
 import ImageEditor from "./image_editor";
 import { OperatorProps, OperatorType } from "./image_editor_operator";
 import MosaicOperator from "./operator/mosaic_operator";
 import TextOperator from "./operator/text_operator";
 import { getAbsolutePosition } from "./uitls";
+import { CanvasDimsRecord, CanvasPosRecord, CanvasReshaperAction } from "./undoer/CanvasReshaper";
+import { FabricUtils } from "./fabric_utils";
 
 const COLOR_MAP = {
   RED: '#FF0000',
@@ -75,6 +77,8 @@ export default class ElementManager {
     fwLeft: NaN
   }
 
+  private recordBeforeResize?: CanvasDimsRecord;
+
   // fw Fabric Wrapper
   private northStartFn: (e: MouseEvent) => void = DEFAULT_FUNCTION;
   private northWestStartFn: (e: MouseEvent) => void = DEFAULT_FUNCTION;
@@ -87,8 +91,6 @@ export default class ElementManager {
 
   private resizeMoveFn: (e: MouseEvent) => void = DEFAULT_FUNCTION;
   private resizeFinishFn: (e: MouseEvent) => void = DEFAULT_FUNCTION;
-
-  private squareSize: number = NaN;
 
   readonly wrapper: HTMLDivElement;
 
@@ -178,8 +180,6 @@ export default class ElementManager {
     this.northEastResizer = options.northEastResizer;
 
     this.fixResizerPosition();
-
-    this.squareSize = this.southResizer.getBoundingClientRect().width;
 
     this.toolbar = options.toolbar;
 
@@ -447,10 +447,46 @@ export default class ElementManager {
     this.shrinkMenu.onclick = () => { this.shrinkCanvas(); }
     this.extendMenu.onclick = () => { this.extendsCanvas(); }
 
-    this.flipXMenu.onclick = () => { this.flipHorizontal(); }
-    this.flipYMenu.onclick = () => { this.flipVertical(); }
-    this.rotateClockwiseMenu.onclick = () => { this.rotateClockwise(); }
-    this.rotateCounterClockwiseMenu.onclick = () => { this.rotateCounterClockwise(); }
+    this.flipXMenu.onclick = () => {
+      this.flipHorizontal();
+      const history = this.imageEditor!.getHistory();
+      history.recordReverseAction(() => this.flipHorizontal(), () => this.flipHorizontal());
+    }
+    this.flipYMenu.onclick = () => {
+      this.flipVertical();
+      const history = this.imageEditor!.getHistory();
+      history.recordReverseAction(() => this.flipVertical(), () => this.flipVertical());
+    }
+    this.rotateClockwiseMenu.onclick = () => {
+      const previous = new CanvasPosRecord(this.canvasWrapper);
+      this.rotateClockwise();
+      const current = new CanvasPosRecord(this.canvasWrapper);
+      const history = this.imageEditor!.getHistory();
+      history.recordReverseAction(() => {
+        this.rotateCounterClockwise();
+        previous.restore();
+        this.fixResizerPosition();
+      }, () => {
+        this.rotateClockwise();
+        current.restore();
+        this.fixResizerPosition();
+      })
+    }
+    this.rotateCounterClockwiseMenu.onclick = () => {
+      const previous = new CanvasPosRecord(this.canvasWrapper);
+      this.rotateCounterClockwise();
+      const current = new CanvasPosRecord(this.canvasWrapper);
+      const history = this.imageEditor!.getHistory();
+      history.recordReverseAction(() => {
+        this.rotateClockwise();
+        previous.restore();
+        this.fixResizerPosition();
+      }, () => {
+        this.rotateCounterClockwise();
+        current.restore();
+        this.fixResizerPosition();
+      })
+    }
     this.cropMenu.onclick = () => { this.cropImage(); }
 
     this.undoMenu.onclick = () => { imageEditor.getHistory().undo(); }
@@ -659,8 +695,24 @@ export default class ElementManager {
       if (this.resizingType === null) {
         return;
       }
-      that.finishResize();
-      that.showToolbar();
+
+      const offset = this.finishResize();
+      this.showToolbar();
+
+      const current = new CanvasDimsRecord(
+        this.canvasWrapper,
+        this.fabricWrapperEl!,
+        this.imageEditor!.getCanvas()
+      );
+
+      this.recordBeforeResize!.offsetX = -offset.offsetX;
+      this.recordBeforeResize!.offsetY = -offset.offsetY;
+
+      current.offsetX = offset.offsetX;
+      current.offsetY = offset.offsetY;
+
+      const history = this.imageEditor!.getHistory();
+      history.recordDimsChangeAction(this.recordBeforeResize!, current, () => this.fixResizerPosition())
     }
 
     this.northResizer.addEventListener('mousedown', this.northStartFn);
@@ -677,6 +729,11 @@ export default class ElementManager {
   }
 
   resizeStart(type: ResizerType, event: MouseEvent) {
+    this.recordBeforeResize = new CanvasDimsRecord(
+      this.canvasWrapper,
+      this.fabricWrapperEl!,
+      this.imageEditor!.getCanvas()
+    );
     const style = this.canvasWrapper.style;
     const fwStyle = this.fabricWrapperEl!.style;
     this.resizingType = type;
@@ -759,8 +816,9 @@ export default class ElementManager {
     body!.style.cursor = 'default'
     if (this.resizingType != null) {
       this.resizingType = null;
-      this.adaptCanvasToViewport();
+      return this.adaptCanvasToViewport();
     }
+    return { offsetX: 0, offsetY: 0 }
   }
 
   adaptCanvasToViewport() {
@@ -823,6 +881,10 @@ export default class ElementManager {
       style.left = newLeft + 'px';
       style.top = newTop + 'px';
     }
+
+    return {
+      offsetX, offsetY
+    }
   }
 
   // 四周如果有白板，就把白板都缩了，其它的不同，相当于只动画板，不动画布
@@ -831,6 +893,8 @@ export default class ElementManager {
     const canvas = this.imageEditor!.getCanvas();
     const image = canvas.backgroundImage!;
     const point = image.getXY();
+
+    const previous = new CanvasDimsRecord(this.canvasWrapper, this.fabricWrapperEl!, canvas);
 
     if (image.angle % 90 != 0) {
       throw new Error("底图只能旋转90度或者180度");
@@ -868,6 +932,9 @@ export default class ElementManager {
     this.fabricWrapperEl!.style.left = -left - cutLeft + 'px';
 
     this.fixComponentsPosition();
+
+    const current = new CanvasDimsRecord(this.canvasWrapper, this.fabricWrapperEl!, canvas);
+    this.imageEditor!.getHistory().recordDimsChangeAction(previous, current, () => this.fixComponentsPosition())
   }
 
   // 如果图片没有显示全，那么先显示全图片
@@ -877,6 +944,8 @@ export default class ElementManager {
     const image = canvas.backgroundImage!;
 
     const { visiableHeight, visiableWidth, left, top, canvasHeight, canvasWidth } = this.getCanvasAreaInfo();
+
+    const previous = new CanvasDimsRecord(this.canvasWrapper, this.fabricWrapperEl!, canvas);
 
     const point = image.getXY();
 
@@ -937,23 +1006,24 @@ export default class ElementManager {
     this.canvasWrapper.style.left = wrapperLeft - extendLeft + 'px';
 
     let newLeft = 0, newTop = 0;
+    let offsetX = 0, offsetY = 0;
     // 如果只是扩展现有的
     if (extendLeft < left) {
       newLeft = extendLeft - left;
       this.fabricWrapperEl!.style.left = newLeft + 'px';
     } else if (extendLeft >= left) {
-      const newExtend = extendLeft - left;
+      offsetX = extendLeft - left;
       this.fabricWrapperEl!.style.left = '0'
-      this.imageEditor!.transformX(newExtend);
+      this.imageEditor!.transformX(offsetX);
     }
 
     if (extendTop < top) {
       newTop = extendTop - top;
       this.fabricWrapperEl!.style.top = newTop + 'px';
     } else if (extendTop >= top) {
-      const newExtend = extendTop - top;
+      offsetY = extendTop - top;
       this.fabricWrapperEl!.style.top = '0'
-      this.imageEditor!.transformY(newExtend);
+      this.imageEditor!.transformY(offsetY);
     }
 
     const extendWidth = newWrapperWidth - (canvasWidth - left);
@@ -965,6 +1035,13 @@ export default class ElementManager {
     this.imageEditor!.setCanvasDims(newCanvasWidth, newCanvasHeight);
 
     this.fixComponentsPosition();
+
+    const current = new CanvasDimsRecord(this.canvasWrapper, this.fabricWrapperEl!, canvas);
+    current.offsetX = offsetX; current.offsetY = offsetY;
+    previous.offsetX = -offsetX; previous.offsetY = -offsetY;
+
+    const history = this.imageEditor!.getHistory()!;
+    history.recordDimsChangeAction(previous, current, () => this.fixComponentsPosition())
   }
 
   flipHorizontal() {
@@ -1059,8 +1136,6 @@ export default class ElementManager {
       const point = obj.getCenterPoint();
       const newPoint = new Point(canvasHeight - point.y, point.x);
       obj.setXY(newPoint, 'center', 'center');
-
-      console.log(newPoint);
     }
 
     const shapes = canvas.getObjects() as FabricObject[] ?? [];
@@ -1074,49 +1149,8 @@ export default class ElementManager {
     this.moveCanvasToCenter();
   }
 
-  calculateCanvasWrapper() {
-    const prop = new CanvasDetailedProps();
-    prop.canvasWrapper = this.canvasWrapper;
-    prop.canvasWrapperLeft = this.canvasWrapper.style.left;
-    prop.canvasWrapperTop = this.canvasWrapper.style.top;
-    prop.canvasWrapperHeight = this.canvasWrapper.style.height;
-    prop.canvasWrapperWidth = this.canvasWrapper.style.width;
-
-    prop.topResizer = this.northResizer;
-    prop.topResizerLeft = this.northResizer.style.left;
-    prop.topResizerTop = this.northResizer.style.top;
-
-    prop.leftResizer = this.westResizer;
-    prop.leftResizerLeft = this.westResizer.style.left;
-    prop.leftResizerTop = this.westResizer.style.top;
-
-    prop.bottomResizer = this.southResizer;
-    prop.bottomResizerLeft = this.southResizer.style.left;
-    prop.bottomResizerTop = this.southResizer.style.top;
-
-    prop.rightResizer = this.eastResizer;
-    prop.rightResizerLeft = this.eastResizer.style.left;
-    prop.rightResizerTop = this.eastResizer.style.top;
-
-    prop.toolbar = this.toolbar;
-    prop.toolbarLeft = this.toolbar.style.left;
-    prop.toolbarTop = this.toolbar.style.top;
-
-    prop.optionBar = this.optionBar;
-    prop.optionBarLeft = this.optionBar.style.left;
-    prop.optionBarTop = this.optionBar.style.top;
-    return prop;
-  }
-
-
   // 逆时针旋转90度
   rotateCounterClockwise() {
-
-    const previous = new RotateProps();
-    const current = new RotateProps();
-    previous.canvasWrapper = current.canvasWrapper = this.canvasWrapper;
-    previous.fabricWrapperEl = current.fabricWrapperEl = this.fabricWrapperEl!;
-    previous.imageEditor = current.imageEditor = this.imageEditor!;
 
     const canvasArea = this.getCanvasAreaInfo();
     const { right, top } = canvasArea;
@@ -1124,79 +1158,29 @@ export default class ElementManager {
     const { visiableHeight, visiableWidth } = canvasArea;
     const canvas = this.imageEditor!.getCanvas()!;
 
-    previous.canvasHeight = canvasHeight; previous.canvasWidth = canvasWidth;
     // 逆时针旋转90度的时候，长高要做一个互换
     this.imageEditor!.setCanvasDims(canvasHeight, canvasWidth);
-    current.canvasHeight = canvasWidth; current.canvasWidth = canvasHeight;
 
     const fwStyle = this.fabricWrapperEl!.style;
-    previous.left = fwStyle.left;
-    previous.top = fwStyle.top;
 
     fwStyle.left = (-1) * top + 'px';
     fwStyle.top = (-1) * right + 'px';
 
-    current.left = fwStyle.left;
-    current.top = fwStyle.top;
-
-    // 可见区域也要一同进行变换
-    previous.width = this.canvasWrapper.style.width;
-    previous.height = this.canvasWrapper.style.height;
-
     this.canvasWrapper.style.width = visiableHeight + 'px';
     this.canvasWrapper.style.height = visiableWidth + 'px';
-
-    current.width = this.canvasWrapper.style.width;
-    current.height = this.canvasWrapper.style.height;
 
     const image = canvas.backgroundImage!
     const objs = canvas.getObjects() as FabricObject[] ?? [];
     objs.unshift(image);
 
     // 还要考虑自带旋转度数的对象
-    const oriAngle = image.angle;
     for (const obj of objs) {
-      const { x, y } = obj.getXY();
-      // 旋转时是按照左上角的顶点进行旋转的
-      // 所以要注意到左上角的位置
-      let newX, newY;
-      // 直接参考顺时针
-      if (oriAngle == 0) {
-        newX = y;
-        const imageRight = canvasWidth - x - obj.width;
-        newY = imageRight + obj.width;
-      } else if (oriAngle == 270) {
-        const imgTop = y - obj.width;
-        const imgRight = canvasWidth - x - obj.height;
-        newX = imgTop + obj.width;
-        newY = imgRight + obj.height;
-      } else if (oriAngle == 180) {
-        const imgTop = y - obj.height;
-        const imgRight = canvasWidth - x;
-        newX = imgTop + obj.height;
-        newY = imgRight;
-      } else if (oriAngle == 90) {
-        const imgRight = canvasWidth - x;
-        const imgTop = y;
-        newX = imgTop;
-        newY = imgRight;
-      } else {
-        throw Error('不满足预期的度数' + oriAngle)
-      }
       const angle = obj.angle;
-      const newAngle = (angle - 90 + 360) % 360;
-
+      const newAngle = (angle - 90) % 360;
       obj.set('angle', newAngle);
-      obj.setXY(new Point(newX, newY));
-
-      previous.objs.push(obj);
-      previous.objAngle.push(angle);
-      previous.objPos.push({ x, y })
-
-      current.objs.push(obj);
-      current.objAngle.push(newAngle);
-      current.objPos.push({ x: newX, y: newY });
-
+      const point = obj.getCenterPoint();
+      const newPoint = new Point(point.y, canvasWidth - point.x);
+      obj.setXY(newPoint, 'center', 'center');
     }
 
     const shapes = canvas.getObjects() as FabricObject[] ?? [];
@@ -1206,16 +1190,8 @@ export default class ElementManager {
     }
     canvas.renderAll();
 
-
-    previous.canvasWrapperProps = this.calculateCanvasWrapper();
-
     // 旋转后，整个图会回到界面的正中央
     this.moveCanvasToCenter();
-
-    current.canvasWrapperProps = this.calculateCanvasWrapper();
-
-    this.imageEditor!.getHistory().recordRotateAction(previous, current);
-
   }
 
   moveCanvasToCenter() {
@@ -1410,20 +1386,6 @@ export default class ElementManager {
     this.northEastResizer.style.display = 'block';
   }
 
-  calculateCanvasInfo() {
-    const info = new FabricCanvasProps();
-    info.fabricWrapperEl = this.fabricWrapperEl!;
-    info.fabricWrapperElLeft = this.fabricWrapperEl!.style.left;
-    info.fabricWrapperElTop = this.fabricWrapperEl!.style.top;
-    const canvas = this.imageEditor!.getCanvas();
-    info.canvasWidth = canvas.width;
-    info.canvasHeight = canvas.height;
-    info.canvasBackgroundColor = canvas.backgroundColor as string;
-    info.canvasBackgroundImage = canvas.backgroundImage;
-    info.objects = canvas.getObjects();
-    return info;
-  }
-
   resetImageEditor() {
     const canvas = this.imageEditor!.getCanvas()
     const image = canvas.backgroundImage!;
@@ -1436,8 +1398,8 @@ export default class ElementManager {
     for (const o of objects) {
       canvas.remove(o);
     }
-    this.fabricWrapperEl!.style.width = '0';
-    this.fabricWrapperEl!.style.height = '0';
+    this.fabricWrapperEl!.style.top = '0';
+    this.fabricWrapperEl!.style.left = '0';
     this.canvasWrapper.style.width = canvas.width + 'px';
     this.canvasWrapper.style.height = canvas.height + 'px';
     this.canvasWrapper.style.left = this.initWrapperLeft;

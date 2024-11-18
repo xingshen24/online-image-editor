@@ -1,6 +1,7 @@
 import { Point } from "fabric";
 import ElementManager, { pixelToNumber } from "./element_manager";
 import ImageEditor from "./image_editor";
+import { CanvasSnapshot } from "./undoer/CanvasSnapshot";
 
 const DEFAULT_MOUSE_DOWN_FUNC = (_e: MouseEvent) => { };
 
@@ -253,7 +254,6 @@ export class Screenshoter {
     }
 
     this.canvasMouseUpFunc = (_event: MouseEvent) => {
-      console.log(this.dragger.isClipAreaInDrag);
       if (!this.dragger.isClipAreaInDrag) {
         return;
       }
@@ -330,8 +330,10 @@ export class Screenshoter {
 
   // TODO 结束的时候要把所有的事件全部都干掉
   async confirmScreenshot() {
-
-    const storeState = this.imageEditor!.storeCanvasState();
+    const em = this.elementManager!;
+    const previous = new CanvasSnapshot(
+      em.canvasWrapper, em.getFabricWrapper()!, this.imageEditor!.getCanvas()
+    );
 
     const { top, left, width, height } = this.getClipAreaRect();
 
@@ -342,8 +344,12 @@ export class Screenshoter {
     this.handleScreenshotFinished();
 
     await this.imageEditor!.renderToCanvas(image);
-    const cropState = this.imageEditor!.storeCanvasState();
-    this.imageEditor!.getHistory().recordCropAction(storeState.wrapper, storeState.canvas, cropState.wrapper, cropState.canvas);
+
+    const current = new CanvasSnapshot(
+      em.canvasWrapper, em.getFabricWrapper()!, this.imageEditor!.getCanvas()
+    );
+    const history = this.imageEditor!.getHistory();
+    history.recordSnapshotAction(previous, current, () => em.fixComponentsPosition());
   }
 
   cancelScreenshot() {
