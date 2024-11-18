@@ -90,6 +90,8 @@ export default class TextOperator implements ImageEditorOperator, OperatorProps 
     const text = new IText('请输入内容', {
       left: pointer.x,
       top: pointer.y,
+      originX: 'center',
+      originY: 'center',
       fontSize: this.fontSize,
       fill: this.color,
       lockScalingFlip: true,

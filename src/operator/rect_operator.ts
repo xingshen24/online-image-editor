@@ -1,4 +1,4 @@
-import { Canvas, Rect } from "fabric";
+import { Canvas, Point, Rect } from "fabric";
 import ImageEditor from "../image_editor";
 import { DEFAULT_COLOR, DEFAULT_STROKE_WIDTH, ImageEditorOperator, OperatorProps, OperatorType } from "../image_editor_operator";
 import FabricObjectChangeHelper from "./move_helper";
@@ -60,8 +60,8 @@ export default class RectangleOperator implements ImageEditorOperator, OperatorP
     this.startX = pointer.x;
     this.startY = pointer.y;
     this.current = new Rect({
-      left: this.startX,
-      top: this.startY,
+      originX: 'center',
+      originY: 'center',
       width: 0,
       height: 0,
       fill: 'transparent',
@@ -79,13 +79,12 @@ export default class RectangleOperator implements ImageEditorOperator, OperatorP
     let pointer = this.canvas.getScenePoint(event.e);
     let width = Math.abs(pointer.x - this.startX);
     let height = Math.abs(pointer.y - this.startY);
-    const left = pointer.x < this.startX ? pointer.x : this.startX;
-    const top = pointer.y < this.startY ? pointer.y : this.startY;
+    const x = (pointer.x + this.startX) / 2;
+    const y = (pointer.y + this.startY) / 2;
 
-    this.current?.set('width', Math.round(width));
-    this.current?.set('height', Math.round(height));
-    this.current?.set('top', Math.round(top));
-    this.current?.set('left', Math.round(left));
+    this.current!.set('width', Math.round(width));
+    this.current!.set('height', Math.round(height));
+    this.current!.setXY(new Point(x, y))
     this.canvas.requestRenderAll();
   }
 
@@ -110,6 +109,9 @@ export default class RectangleOperator implements ImageEditorOperator, OperatorP
       FabricObjectChangeHelper.listenMove(this.current!, this.imageEditor.getHistory());
       FabricObjectChangeHelper.listenScale(this.current!, this.imageEditor.getHistory());
       this.imageEditor.getHistory().recordCreateAction(this.current!);
+      this.canvas.setActiveObject(this.current!);
+      this.current!.setCoords();
     }
+
   }
 }

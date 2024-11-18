@@ -1,7 +1,7 @@
 import { Canvas, PatternBrush, Shadow } from "fabric";
 import ImageEditor from "../image_editor";
 import OperationHistory from "../history";
-import { DEFAULT_COLOR, OperatorProps } from "../image_editor_operator";
+import { DEFAULT_COLOR, OperatorProps, OperatorType } from "../image_editor_operator";
 
 const blockSize = 5;
 
@@ -36,6 +36,8 @@ function mosaicify(imageData: any) {
 
 export default class MosaicOperator implements OperatorProps {
 
+  private imageEditor: ImageEditor;
+
   private canvas: Canvas;
 
   private history: OperationHistory;
@@ -47,7 +49,10 @@ export default class MosaicOperator implements OperatorProps {
 
   private recorder: (event: any) => void;
 
+  private enableDraw = false;
+
   constructor(imageEditor: ImageEditor) {
+    this.imageEditor = imageEditor;
     this.canvas = imageEditor.getCanvas();
     this.history = imageEditor.getHistory();
     this.recorder = this.recordPathCreate.bind(this);
@@ -73,8 +78,39 @@ export default class MosaicOperator implements OperatorProps {
     path.evented = false;
     path.hoverCursor = 'default';
     path.lockScalingFlip = true
+
+    const boundingRect = path.getBoundingRect();
+
+    // 将原点从 left/top 转为 center
+    path.set({
+      originX: 'center',
+      originY: 'center',
+      left: boundingRect.left + boundingRect.width / 2,
+      top: boundingRect.top + boundingRect.height / 2,
+    });
+
     this.canvas.renderAll();
     this.history.recordCreateAction(path);
+  }
+
+  tryToStartMosaic() {
+    if (this.imageEditor.getOperatorType() !== OperatorType.MOSAIC) {
+      return;
+    }
+    if (!this.canvas._hoveredTarget) {
+      this.enableDraw = true;
+      this.startMosaicMode();
+    }
+  }
+
+  tryToFinishMosaic() {
+    if (this.imageEditor.getOperatorType() !== OperatorType.MOSAIC) {
+      return;
+    }
+    if (this.enableDraw) {
+      this.endMosaicMode();
+      this.enableDraw = false;
+    }
   }
 
   startMosaicMode() {

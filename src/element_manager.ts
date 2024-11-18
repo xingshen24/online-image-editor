@@ -75,8 +75,6 @@ export default class ElementManager {
     fwLeft: NaN
   }
 
-  private topInResize: boolean = false;
-
   // fw Fabric Wrapper
   private northStartFn: (e: MouseEvent) => void = DEFAULT_FUNCTION;
   private northWestStartFn: (e: MouseEvent) => void = DEFAULT_FUNCTION;
@@ -154,6 +152,9 @@ export default class ElementManager {
   private menuMap = new Map();
   private eleColorMap = new Map();
   private colorEleMap = new Map();
+
+  private initWrapperLeft: string = '';
+  private initWrapperTop: string = '';
 
   constructor(options: any) {
 
@@ -251,6 +252,20 @@ export default class ElementManager {
     this.appendHoverCSS();
   }
 
+  setInitLeftTop(styledLeft: string, styledTop: string) {
+    this.initWrapperLeft = styledLeft;
+    this.initWrapperTop = styledTop;
+  }
+
+
+  getInitLeftTop() {
+    return {
+      left: this.initWrapperLeft,
+      top: this.initWrapperTop
+    }
+  }
+
+
   appendHoverCSS() {
     if (ElementManager.HAS_CURSOR_CSS_ADDED) {
       return;
@@ -298,6 +313,7 @@ export default class ElementManager {
 
   createOperatorOptionBar() {
     const wrapper = document.createElement("div");
+    wrapper.style.zIndex = '10'
     // 默认隐藏
     wrapper.style.display = 'none';
     wrapper.style.backgroundColor = 'white';
@@ -428,7 +444,7 @@ export default class ElementManager {
     this.mosaicMenu.onclick = () => { this.switchOperator(OperatorType.MOSAIC) };
     this.textMenu.onclick = () => { this.switchOperator(OperatorType.TEXT) };
 
-    this.shrinkMenu.onclick = () => { this.shrinkCanvasToBackgroundImage(); }
+    this.shrinkMenu.onclick = () => { this.shrinkCanvas(); }
     this.extendMenu.onclick = () => { this.extendsCanvas(); }
 
     this.flipXMenu.onclick = () => { this.flipHorizontal(); }
@@ -810,34 +826,46 @@ export default class ElementManager {
   }
 
   // 四周如果有白板，就把白板都缩了，其它的不同，相当于只动画板，不动画布
-  shrinkCanvasToBackgroundImage() {
+  shrinkCanvas() {
+
     const canvas = this.imageEditor!.getCanvas();
     const image = canvas.backgroundImage!;
     const point = image.getXY();
 
+    if (image.angle % 90 != 0) {
+      throw new Error("底图只能旋转90度或者180度");
+    }
+
+    const horizon = image.angle % 180 == 0
+    const imgWidth = horizon ? image.width : image.height;
+    const imgHeight = horizon ? image.height : image.width;
+
     const { visiableHeight, visiableWidth, left, top } = this.getCanvasAreaInfo();
-    const shrinkRight = point.x + image.width - left < visiableWidth;
-    const shrinkBottom = point.y + image.height - top < visiableHeight;
+    const imgLeft = point.x - imgWidth / 2;
+    const cutLeft = imgLeft > left ? imgLeft - left : 0;
 
-    const cutWrapperLeft = point.x > left ? point.x - left : 0;
-    const cutWrapperTop = point.y > top ? point.y - top : 0;
+    const imgTop = point.y - imgHeight / 2;
+    const cutTop = imgTop > top ? imgTop - top : 0;
 
-    const cutWrapperRight = shrinkRight ? visiableWidth - (point.x + image.width - left) : 0;
-    const cutWrapperBottom = shrinkBottom ? visiableHeight - (point.y + image.height - top) : 0;
+    const imgRight = point.x + imgWidth / 2;
+    const cutRight = left + visiableWidth > imgRight ? left + visiableWidth - imgRight : 0;
+
+    const imgBottom = point.y + imgHeight / 2;
+    const cutBottom = top + visiableHeight > imgBottom ? top + visiableHeight - imgBottom : 0;
 
     const wrapperWidth = pixelToNumber(this.canvasWrapper.style.width)
     const wrapperHeight = pixelToNumber(this.canvasWrapper.style.height)
     const wrapperTop = pixelToNumber(this.canvasWrapper.style.top)
     const wrapperLeft = pixelToNumber(this.canvasWrapper.style.left)
 
-    this.canvasWrapper.style.width = wrapperWidth - cutWrapperRight - cutWrapperLeft + 'px';
-    this.canvasWrapper.style.height = wrapperHeight - cutWrapperBottom - cutWrapperTop + 'px';
+    this.canvasWrapper.style.width = wrapperWidth - cutLeft - cutRight + 'px';
+    this.canvasWrapper.style.height = wrapperHeight - cutBottom - cutTop + 'px';
 
     // 视口向下移动的时候，画板不要动，也就是说画板left、top要相应的变化
-    this.canvasWrapper.style.top = wrapperTop + cutWrapperTop + 'px';
-    this.canvasWrapper.style.left = wrapperLeft + cutWrapperLeft + 'px';
-    this.fabricWrapperEl!.style.top = -top - cutWrapperTop + 'px';
-    this.fabricWrapperEl!.style.left = -left - cutWrapperLeft + 'px';
+    this.canvasWrapper.style.top = wrapperTop + cutTop + 'px';
+    this.canvasWrapper.style.left = wrapperLeft + cutLeft + 'px';
+    this.fabricWrapperEl!.style.top = -top - cutTop + 'px';
+    this.fabricWrapperEl!.style.left = -left - cutLeft + 'px';
 
     this.fixComponentsPosition();
   }
@@ -848,13 +876,28 @@ export default class ElementManager {
     const canvas = this.imageEditor!.getCanvas();
     const image = canvas.backgroundImage!;
 
-    const point = image.getXY();
     const { visiableHeight, visiableWidth, left, top, canvasHeight, canvasWidth } = this.getCanvasAreaInfo();
 
-    const topExtend = point.y - top;
-    const leftExtend = point.x - left;
-    const bottomExtend = visiableHeight - (point.y + image.height - top);
-    const rightExtend = visiableWidth - (point.x + image.width - left);
+    const point = image.getXY();
+
+    if (image.angle % 90 != 0) {
+      throw new Error("底图只能旋转90度或者180度");
+    }
+
+    const horizon = image.angle % 180 == 0
+    const imgWidth = horizon ? image.width : image.height;
+    const imgHeight = horizon ? image.height : image.width;
+
+    const imgLeft = point.x - imgWidth / 2;
+    const imgRight = point.x + imgWidth / 2;
+
+    const imgTop = point.y - imgHeight / 2;
+    const imgBottom = point.y + imgHeight / 2;
+
+    const topExtend = imgTop - top;
+    const leftExtend = imgLeft - left;
+    const bottomExtend = visiableHeight - (imgBottom - top);
+    const rightExtend = visiableWidth - (imgRight - left);
 
     const wrapperWidth = pixelToNumber(this.canvasWrapper.style.width)
     const wrapperHeight = pixelToNumber(this.canvasWrapper.style.height)
@@ -878,7 +921,6 @@ export default class ElementManager {
     } else if (maxYExtend >= 0 && maxYExtend === minYExtend) {
       yExtend = maxYExtend + Math.round(image.height * 0.15);
     }
-
 
     const extendLeft = xExtend - leftExtend;
     const extendRight = xExtend - rightExtend;
@@ -947,8 +989,7 @@ export default class ElementManager {
     for (const obj of objs) {
       const objFlipX = obj.flipX;
       const x = obj.getX()
-      const width = obj.width;
-      const nx = canvasWidth - width - x;
+      const nx = canvasWidth - x;
       obj.flipX = !objFlipX;
       obj.setX(nx);
       canvas.setActiveObject(obj);
@@ -979,8 +1020,7 @@ export default class ElementManager {
     for (const obj of objs) {
       const objFlipY = obj.flipY;
       const y = obj.getY()
-      const height = obj.height;
-      const ny = canvasHeight - height - y;
+      const ny = canvasHeight - y;
       obj.flipY = !objFlipY;
       obj.setY(ny);
       canvas.setActiveObject(obj);
@@ -1017,7 +1057,6 @@ export default class ElementManager {
       const newAngle = (angle + 90) % 360;
       obj.set('angle', newAngle);
       const point = obj.getCenterPoint();
-      console.log(point)
       const newPoint = new Point(canvasHeight - point.y, point.x);
       obj.setXY(newPoint, 'center', 'center');
 
@@ -1209,7 +1248,6 @@ export default class ElementManager {
   }
 
   fixComponentsPosition() {
-    this.fixToolbarPosition();
     this.fixResizerPosition();
   }
 
@@ -1258,6 +1296,9 @@ export default class ElementManager {
   }
 
   fixToolbarPosition() {
+    if (1 == 1) {
+      return;
+    }
     const top = pixelToNumber(this.canvasWrapper.style.top);
     const left = pixelToNumber(this.canvasWrapper.style.left);
     const width = pixelToNumber(this.canvasWrapper.style.width);
@@ -1349,16 +1390,24 @@ export default class ElementManager {
 
   hideResizer() {
     this.northResizer.style.display = 'none';
+    this.northWestResizer.style.display = 'none';
     this.westResizer.style.display = 'none';
+    this.southWestResizer.style.display = 'none';
     this.southResizer.style.display = 'none';
+    this.southEastResizer.style.display = 'none';
     this.eastResizer.style.display = 'none';
+    this.northEastResizer.style.display = 'none';
   }
 
   showResizer() {
     this.northResizer.style.display = 'block';
+    this.northWestResizer.style.display = 'block';
     this.westResizer.style.display = 'block';
+    this.southWestResizer.style.display = 'block';
     this.southResizer.style.display = 'block';
+    this.southEastResizer.style.display = 'block';
     this.eastResizer.style.display = 'block';
+    this.northEastResizer.style.display = 'block';
   }
 
   calculateCanvasInfo() {
@@ -1381,7 +1430,8 @@ export default class ElementManager {
     const width = image.width;
     const height = image.height;
     this.imageEditor!.setCanvasDims(width, height);
-    image.setXY(new Point(0, 0));
+    image.setXY(new Point(width / 2, height / 2));
+    image.angle = 0;
     const objects = canvas.getObjects()
     for (const o of objects) {
       canvas.remove(o);
@@ -1390,8 +1440,8 @@ export default class ElementManager {
     this.fabricWrapperEl!.style.height = '0';
     this.canvasWrapper.style.width = canvas.width + 'px';
     this.canvasWrapper.style.height = canvas.height + 'px';
-    this.canvasWrapper.style.left = this.imageEditor!.initWrapperLeft;
-    this.canvasWrapper.style.top = this.imageEditor!.initWrapperTop;
+    this.canvasWrapper.style.left = this.initWrapperLeft;
+    this.canvasWrapper.style.top = this.initWrapperTop;
     this.fixComponentsPosition();
     this.imageEditor!.getHistory().clearRedoStack();
   }
@@ -1399,8 +1449,8 @@ export default class ElementManager {
   downloadAreaImage() {
     const width = pixelToNumber(this.canvasWrapper.style.width);
     const height = pixelToNumber(this.canvasWrapper.style.height);
-    const left = pixelToNumber(this.fabricWrapperEl!.style.left)
-    const top = pixelToNumber(this.fabricWrapperEl!.style.top)
+    const left = (-1) * pixelToNumber(this.fabricWrapperEl!.style.left)
+    const top = (-1) * pixelToNumber(this.fabricWrapperEl!.style.top)
     const start = new Point(left, top);
     const end = new Point(left + width, top + height);
     const image = this.imageEditor!.getAreaImageInfo(start, end);

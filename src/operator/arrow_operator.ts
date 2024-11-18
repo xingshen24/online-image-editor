@@ -61,7 +61,9 @@ export default class ArrowOperator implements ImageEditorOperator, OperatorProps
       strokeWidth: this.strokeWidth,
       stroke: this.color,
       lockScalingFlip: true,
-      perPixelTargetFind: true
+      perPixelTargetFind: true,
+      originX: 'center',
+      originY: 'center'
     })
     this.current = arrow;
     canvas.add(arrow);
@@ -100,6 +102,8 @@ export default class ArrowOperator implements ImageEditorOperator, OperatorProps
       FabricObjectChangeHelper.listenMove(this.current!, this.imageEditor.getHistory());
       FabricObjectChangeHelper.listenScale(this.current!, this.imageEditor.getHistory());
       this.imageEditor.getHistory().recordCreateAction(this.current!);
+      this.canvas.setActiveObject(this.current!)
+      this.current!.setCoords();
     }
   }
 }

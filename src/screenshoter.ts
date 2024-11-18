@@ -224,7 +224,7 @@ export class Screenshoter {
 
         this.transferClipArea(changeX, changeY);
 
-        this.adjustToolbarPosition();
+        this.fixedScreenshotToolbarPosition();
       }
     }
 
@@ -365,7 +365,8 @@ export class Screenshoter {
     document.removeEventListener('mouseup', this.canvasMouseUpFunc);
   }
 
-  adjustToolbarPosition() {
+  fixedScreenshotToolbarPosition() {
+
     const toolbar = this.toolbar!;
     const resizer = this.screenshotResizer!;
 
@@ -503,7 +504,7 @@ export class Screenshoter {
     this.clipArea.startY = startY;
     this.clipArea.width = width;
     this.clipArea.height = height;
-    this.adjustToolbarPosition();
+    this.fixedScreenshotToolbarPosition();
   }
 
 
@@ -614,6 +615,6 @@ export class Screenshoter {
 
     this.elementManager!.hideResizer();
 
-    this.adjustToolbarPosition();
+    this.fixedScreenshotToolbarPosition();
   }
 }

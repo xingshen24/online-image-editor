@@ -39,6 +39,12 @@ class ImageEditorHelper {
     document.body.appendChild(wrapper);
 
     const toolbar = document.createElement("div");
+    // 防止wrapper把它盖住了
+    toolbar.style.zIndex = '1';
+    toolbar.style.position = 'fixed';
+    toolbar.style.bottom = '50px';
+    toolbar.style.left = '50%';
+    toolbar.style.transform = 'translateX(-50%)';
     const toolbarMenu = this.initToolbar(toolbar);
 
     // 不考虑滚动条的事，出现滚动条的话，就给点偏差
@@ -70,7 +76,7 @@ class ImageEditorHelper {
 
     canvasWrapper.append(canvas);
     wrapper.appendChild(canvasWrapper)
-    wrapper.appendChild(toolbar)
+    document.body.appendChild(toolbar)
     wrapper.appendChild(screenshotCanvas);
     document.body.appendChild(wrapper);
 
@@ -148,7 +154,6 @@ class ImageEditorHelper {
     toolbar.style.borderRadius = "4px 4px 4px 4px";
     toolbar.style.height = "24px";
     toolbar.style.width = "690px";
-    toolbar.style.position = "absolute";
 
     const ret = {} as any;
 
@@ -260,6 +265,8 @@ class ImageEditorHelper {
 
     manager.fixComponentsPosition();
     wrapper.style.visibility = 'visible';
+
+    manager.setInitLeftTop(canvasWrapper.style.left, canvasWrapper.style.top);
   }
 
   private static createCanvasResizer(wrapper: HTMLElement) {

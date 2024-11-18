@@ -1,7 +1,7 @@
-import { BaseBrush, Canvas, PencilBrush, Shadow } from "fabric";
+import { BaseBrush, Canvas, PencilBrush, Point, Shadow } from "fabric";
 import OperationHistory from "../history";
 import ImageEditor from "../image_editor";
-import { DEFAULT_COLOR, DEFAULT_STROKE_WIDTH, OperatorProps } from "../image_editor_operator";
+import { DEFAULT_COLOR, DEFAULT_STROKE_WIDTH, OperatorProps, OperatorType } from "../image_editor_operator";
 import FabricObjectChangeHelper from "./move_helper";
 
 export default class DrawOperator implements OperatorProps {
@@ -19,6 +19,8 @@ export default class DrawOperator implements OperatorProps {
   private recorder: (event: any) => void;
 
   private brush: BaseBrush | undefined;
+
+  private enableDraw = false;
 
   constructor(imageEditor: ImageEditor) {
     this.imageEditor = imageEditor;
@@ -45,7 +47,16 @@ export default class DrawOperator implements OperatorProps {
 
   recordPathCreate(event: any) {
     const path = event.path;
-    path.hoverCursor = 'default';
+    const boundingRect = path.getBoundingRect();
+
+    // 将原点从 left/top 转为 center
+    path.set({
+      originX: 'center',
+      originY: 'center',
+      left: boundingRect.left + boundingRect.width / 2,
+      top: boundingRect.top + boundingRect.height / 2,
+    });
+
     path.perPixelTargetFind = true;
     path.lockScalingFlip = true;
     this.canvas.renderAll();
@@ -59,6 +70,26 @@ export default class DrawOperator implements OperatorProps {
     FabricObjectChangeHelper.listenMove(path, this.imageEditor.getHistory());
     FabricObjectChangeHelper.listenRatioScale(path, this.imageEditor.getHistory());
     this.history.recordCreateAction(path);
+  }
+
+  tryToStartDraw() {
+    if (this.imageEditor.getOperatorType() !== OperatorType.DRAW) {
+      return;
+    }
+    if (!this.canvas._hoveredTarget) {
+      this.enableDraw = true;
+      this.startDrawMode();
+    }
+  }
+
+  tryToFinishDraw() {
+    if (this.imageEditor.getOperatorType() !== OperatorType.DRAW) {
+      return;
+    }
+    if (this.enableDraw) {
+      this.endDrawMode();
+      this.enableDraw = false;
+    }
   }
 
   startDrawMode(): void {

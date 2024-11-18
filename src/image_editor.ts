@@ -10,6 +10,7 @@ import TextOperator from "./operator/text_operator";
 import OperationHistory from "./history";
 import { Screenshoter } from "./screenshoter";
 import { ImageEditorShortcutManager } from "./shortcut_manager";
+import { FabricUtils } from "./fabric_utils";
 
 export default class ImageEditor {
 
@@ -37,10 +38,6 @@ export default class ImageEditor {
 
   private operatorMap = new Map();
 
-  readonly initWrapperLeft: string;
-
-  readonly initWrapperTop: string;
-
   private shortcutManager: ImageEditorShortcutManager;
 
   constructor(canvas: Canvas, elementManager: ElementManager) {
@@ -62,9 +59,6 @@ export default class ImageEditor {
     this.operatorMap.set(OperatorType.MOSAIC, this.mosaicOperator);
     this.canvas.selection = false;
     this.screenshoter = new Screenshoter();
-    const canvasWrapper = elementManager.canvasWrapper;
-    this.initWrapperLeft = canvasWrapper.style.left;
-    this.initWrapperTop = canvasWrapper.style.top;
     this.shortcutManager = new ImageEditorShortcutManager(this);
   }
 
@@ -91,6 +85,12 @@ export default class ImageEditor {
     this.canvas.on('mouse:down:before', textOperator.handleMouseDownBefore.bind(textOperator))
     this.canvas.on('mouse:down', textOperator.handleMouseDown.bind(textOperator));
     this.canvas.on('mouse:up', textOperator.handleMouseUp.bind(textOperator));
+    const drawOperator = this.drawOperator;
+    this.canvas.on('mouse:down:before', drawOperator.tryToStartDraw.bind(drawOperator))
+    this.canvas.on('mouse:up', drawOperator.tryToFinishDraw.bind(drawOperator))
+    const mosaicOperator = this.mosaicOperator;
+    this.canvas.on('mouse:down:before', mosaicOperator.tryToStartMosaic.bind(mosaicOperator))
+    this.canvas.on('mouse:up', mosaicOperator.tryToFinishMosaic.bind(mosaicOperator))
   }
 
   getCanvas() {
@@ -110,22 +110,13 @@ export default class ImageEditor {
     if (this.operatorType == type) {
       return;
     }
-    const previous = this.operatorType;
     const current = type;
-    switch (previous) {
-      case OperatorType.MOSAIC: this.mosaicOperator.endMosaicMode(); break
-      case OperatorType.DRAW: this.drawOperator.endDrawMode(); break;
-    }
-    switch (current) {
-      case OperatorType.MOSAIC: this.mosaicOperator.startMosaicMode(); break
-      case OperatorType.DRAW: this.drawOperator.startDrawMode(); break;
-    }
     this.operatorType = current;
     if (current == OperatorType.NONE) {
-      this.canvas.getObjects().forEach((obj: FabricObject) => {
-        // 重新调整完后，要将对象激活一下，这或许是个坑？
-        this.canvas.setActiveObject(obj);
-      })
+      // this.canvas.getObjects().forEach((obj: FabricObject) => {
+      //   // 重新调整完后，要将对象激活一下，这或许是个坑？
+      //   this.canvas.setActiveObject(obj);
+      // })
     }
   }
 
@@ -226,8 +217,8 @@ export default class ImageEditor {
       const width = img.width;
       const height = img.height;
       canvas.setDimensions({ width, height })
-      img.setX(0);
-      img.setY(0);
+      FabricUtils.setCenterOrigin(img);
+      img.setXY(new Point(width / 2, height / 2));
       canvas.backgroundImage = img;
       canvas.backgroundColor = '#FFF';
       const style = elementManger.getFabricWrapper()!.style;

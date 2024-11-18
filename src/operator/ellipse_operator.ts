@@ -1,4 +1,4 @@
-import { Canvas, Ellipse } from "fabric";
+import { Canvas, Ellipse, Point } from "fabric";
 import ImageEditor from "../image_editor";
 import { DEFAULT_COLOR, DEFAULT_STROKE_WIDTH, ImageEditorOperator, OperatorProps, OperatorType } from "../image_editor_operator";
 import FabricObjectChangeHelper from "./move_helper";
@@ -57,8 +57,8 @@ export default class EllipseOperator implements ImageEditorOperator, OperatorPro
     this.startX = pointer.x;
     this.startY = pointer.y;
     this.current = new Ellipse({
-      left: this.startX,
-      top: this.startY,
+      originX: 'center',
+      originY: 'center',
       rx: 0,
       ry: 0,
       fill: 'transparent',
@@ -83,13 +83,12 @@ export default class EllipseOperator implements ImageEditorOperator, OperatorPro
     if (ry > this.strokeWidth / 2) {
       ry = ry - this.strokeWidth / 2
     }
-    let top = pointer.y < this.startY ? pointer.y : this.startY;
-    let left = pointer.x < this.startX ? pointer.x : this.startX;
+    let x = (this.startX + pointer.x) / 2;
+    let y = (this.startY + pointer.y) / 2;
 
-    this.current?.set('rx', rx);
-    this.current?.set('ry', ry);
-    this.current?.set('top', top);
-    this.current?.set('left', left);
+    this.current!.set('rx', rx);
+    this.current!.set('ry', ry);
+    this.current!.setXY(new Point(x, y));
 
     this.canvas.requestRenderAll();
   }
@@ -118,6 +117,8 @@ export default class EllipseOperator implements ImageEditorOperator, OperatorPro
       FabricObjectChangeHelper.listenMove(this.current!, this.imageEditor.getHistory());
       FabricObjectChangeHelper.listenEllipseScale(this.current!, this.imageEditor.getHistory());
       this.imageEditor.getHistory().recordCreateAction(this.current!);
+      this.canvas.setActiveObject(this.current!)
+      this.current!.setCoords();
     }
     this.current = undefined;
   }
