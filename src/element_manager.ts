@@ -18,7 +18,7 @@ const COLOR_MAP = {
 
 const DEFAULT_FUNCTION = () => { }
 
-export const pxielToNumber = (length: string) => {
+export const pixelToNumber = (length: string) => {
   if (length == null) {
     return 0;
   }
@@ -667,12 +667,12 @@ export default class ElementManager {
     this.resizeStartInfo = {
       x: event.pageX,
       y: event.pageY,
-      left: pxielToNumber(style.left),
-      top: pxielToNumber(style.top),
-      height: pxielToNumber(style.height),
-      width: pxielToNumber(style.width),
-      fwLeft: pxielToNumber(fwStyle.left),
-      fwTop: pxielToNumber(fwStyle.top)
+      left: pixelToNumber(style.left),
+      top: pixelToNumber(style.top),
+      height: pixelToNumber(style.height),
+      width: pixelToNumber(style.width),
+      fwLeft: pixelToNumber(fwStyle.left),
+      fwTop: pixelToNumber(fwStyle.top)
     }
     this.hideToolbar();
   }
@@ -755,13 +755,13 @@ export default class ElementManager {
     const wrapperStyle = this.canvasWrapper!.style;
 
     // top left应该都是负数
-    const top = pxielToNumber(style.top);
-    const left = pxielToNumber(style.left);
-    const width = pxielToNumber(style.width);
-    const height = pxielToNumber(style.height);
+    const top = pixelToNumber(style.top);
+    const left = pixelToNumber(style.left);
+    const width = pixelToNumber(style.width);
+    const height = pixelToNumber(style.height);
 
-    const wrapperWidth = pxielToNumber(wrapperStyle.width);
-    const wrapperHeight = pxielToNumber(wrapperStyle.height);
+    const wrapperWidth = pixelToNumber(wrapperStyle.width);
+    const wrapperHeight = pixelToNumber(wrapperStyle.height);
 
     let newTop = top, newLeft = left;
     let newWidth = width, newHeight = height;
@@ -825,10 +825,10 @@ export default class ElementManager {
     const cutWrapperRight = shrinkRight ? visiableWidth - (point.x + image.width - left) : 0;
     const cutWrapperBottom = shrinkBottom ? visiableHeight - (point.y + image.height - top) : 0;
 
-    const wrapperWidth = pxielToNumber(this.canvasWrapper.style.width)
-    const wrapperHeight = pxielToNumber(this.canvasWrapper.style.height)
-    const wrapperTop = pxielToNumber(this.canvasWrapper.style.top)
-    const wrapperLeft = pxielToNumber(this.canvasWrapper.style.left)
+    const wrapperWidth = pixelToNumber(this.canvasWrapper.style.width)
+    const wrapperHeight = pixelToNumber(this.canvasWrapper.style.height)
+    const wrapperTop = pixelToNumber(this.canvasWrapper.style.top)
+    const wrapperLeft = pixelToNumber(this.canvasWrapper.style.left)
 
     this.canvasWrapper.style.width = wrapperWidth - cutWrapperRight - cutWrapperLeft + 'px';
     this.canvasWrapper.style.height = wrapperHeight - cutWrapperBottom - cutWrapperTop + 'px';
@@ -856,10 +856,10 @@ export default class ElementManager {
     const bottomExtend = visiableHeight - (point.y + image.height - top);
     const rightExtend = visiableWidth - (point.x + image.width - left);
 
-    const wrapperWidth = pxielToNumber(this.canvasWrapper.style.width)
-    const wrapperHeight = pxielToNumber(this.canvasWrapper.style.height)
-    const wrapperTop = pxielToNumber(this.canvasWrapper.style.top)
-    const wrapperLeft = pxielToNumber(this.canvasWrapper.style.left)
+    const wrapperWidth = pixelToNumber(this.canvasWrapper.style.width)
+    const wrapperHeight = pixelToNumber(this.canvasWrapper.style.height)
+    const wrapperTop = pixelToNumber(this.canvasWrapper.style.top)
+    const wrapperLeft = pixelToNumber(this.canvasWrapper.style.left)
 
     let maxXExtend = Math.max(leftExtend, rightExtend);
     let maxYExtend = Math.max(topExtend, bottomExtend);
@@ -1215,10 +1215,10 @@ export default class ElementManager {
 
   fixResizerPosition() {
 
-    const cwTop = pxielToNumber(this.canvasWrapper.style.top)
-    const cwLeft = pxielToNumber(this.canvasWrapper.style.left)
-    const wrapperWidth = pxielToNumber(this.canvasWrapper.style.width)
-    const wrapperHeight = pxielToNumber(this.canvasWrapper.style.height)
+    const cwTop = pixelToNumber(this.canvasWrapper.style.top)
+    const cwLeft = pixelToNumber(this.canvasWrapper.style.left)
+    const wrapperWidth = pixelToNumber(this.canvasWrapper.style.width)
+    const wrapperHeight = pixelToNumber(this.canvasWrapper.style.height)
 
     // 12是拉伸按钮的大小，6是拉伸大小的一半，用来做偏移用
     const northResizerTop = cwTop - 12;
@@ -1258,11 +1258,11 @@ export default class ElementManager {
   }
 
   fixToolbarPosition() {
-    const top = pxielToNumber(this.canvasWrapper.style.top);
-    const left = pxielToNumber(this.canvasWrapper.style.left);
-    const width = pxielToNumber(this.canvasWrapper.style.width);
-    const toolbarWidth = pxielToNumber(this.toolbar.style.width) + 2 * pxielToNumber(this.toolbar.style.padding);
-    const height = pxielToNumber(this.canvasWrapper.style.height);
+    const top = pixelToNumber(this.canvasWrapper.style.top);
+    const left = pixelToNumber(this.canvasWrapper.style.left);
+    const width = pixelToNumber(this.canvasWrapper.style.width);
+    const toolbarWidth = pixelToNumber(this.toolbar.style.width) + 2 * pixelToNumber(this.toolbar.style.padding);
+    const height = pixelToNumber(this.canvasWrapper.style.height);
     // 20是一个间隔高度
     this.toolbar.style.top = top + height + 20 + 'px';
     this.toolbar.style.left = left + width / 2 - toolbarWidth / 2 + 'px';
@@ -1333,11 +1333,11 @@ export default class ElementManager {
   // 不能用两个canvas，两个canvas会带来闪烁的问题，直接在原来的canvas上操作
   cropImage() {
     this.hideToolbar();
-    const width = pxielToNumber(this.canvasWrapper!.style.width);
-    const height = pxielToNumber(this.canvasWrapper!.style.height);
+    const width = pixelToNumber(this.canvasWrapper!.style.width);
+    const height = pixelToNumber(this.canvasWrapper!.style.height);
     const screenshot = this.imageEditor!.getScreenshoter();
-    const left = pxielToNumber(this.canvasWrapper!.style.left);
-    const top = pxielToNumber(this.canvasWrapper!.style.top);
+    const left = pixelToNumber(this.canvasWrapper!.style.left);
+    const top = pixelToNumber(this.canvasWrapper!.style.top);
     screenshot.initMask(left, top, width, height);
   }
 
@@ -1397,10 +1397,10 @@ export default class ElementManager {
   }
 
   downloadAreaImage() {
-    const width = pxielToNumber(this.canvasWrapper.style.width);
-    const height = pxielToNumber(this.canvasWrapper.style.height);
-    const left = pxielToNumber(this.fabricWrapperEl!.style.left)
-    const top = pxielToNumber(this.fabricWrapperEl!.style.top)
+    const width = pixelToNumber(this.canvasWrapper.style.width);
+    const height = pixelToNumber(this.canvasWrapper.style.height);
+    const left = pixelToNumber(this.fabricWrapperEl!.style.left)
+    const top = pixelToNumber(this.fabricWrapperEl!.style.top)
     const start = new Point(left, top);
     const end = new Point(left + width, top + height);
     const image = this.imageEditor!.getAreaImageInfo(start, end);

@@ -1,5 +1,5 @@
 import { Point } from "fabric";
-import ElementManager, { pxielToNumber } from "./element_manager";
+import ElementManager, { pixelToNumber } from "./element_manager";
 import ImageEditor from "./image_editor";
 
 const DEFAULT_MOUSE_DOWN_FUNC = (_e: MouseEvent) => { };
@@ -132,8 +132,8 @@ export class Screenshoter {
       that.activeResizer = name;
       that.startX = e.pageX;
       that.startY = e.pageY;
-      that.resizerPosX = pxielToNumber(style.left);
-      that.resizerPosY = pxielToNumber(style.top);
+      that.resizerPosX = pixelToNumber(style.left);
+      that.resizerPosY = pixelToNumber(style.top);
     }
 
     const resizer = that.screenshotResizer!;
@@ -242,8 +242,8 @@ export class Screenshoter {
         const eleName = value[0];
         const ele = value[1];
 
-        this.dragRecord[eleName + 'Left'] = pxielToNumber(ele.style.left);
-        this.dragRecord[eleName + 'Top'] = pxielToNumber(ele.style.top);
+        this.dragRecord[eleName + 'Left'] = pixelToNumber(ele.style.left);
+        this.dragRecord[eleName + 'Top'] = pixelToNumber(ele.style.top);
       })
 
       this.dragger.height = this.clipArea.height;
@@ -299,15 +299,15 @@ export class Screenshoter {
 
   getClipAreaRect() {
     const resizer = this.screenshotResizer!;
-    const neTop = pxielToNumber(resizer.northEast.style.top);
-    const nwTop = pxielToNumber(resizer.northWest.style.top);
-    const swTop = pxielToNumber(resizer.southWest.style.top);
-    const seTop = pxielToNumber(resizer.southEast.style.top);
+    const neTop = pixelToNumber(resizer.northEast.style.top);
+    const nwTop = pixelToNumber(resizer.northWest.style.top);
+    const swTop = pixelToNumber(resizer.southWest.style.top);
+    const seTop = pixelToNumber(resizer.southEast.style.top);
 
-    const nwLeft = pxielToNumber(resizer.northWest.style.left)
-    const neLeft = pxielToNumber(resizer.northEast.style.left);
-    const swLeft = pxielToNumber(resizer.southWest.style.left);
-    const seLeft = pxielToNumber(resizer.southEast.style.left);
+    const nwLeft = pixelToNumber(resizer.northWest.style.left)
+    const neLeft = pixelToNumber(resizer.northEast.style.left);
+    const swLeft = pixelToNumber(resizer.southWest.style.left);
+    const seLeft = pixelToNumber(resizer.southEast.style.left);
 
     const maxTop = Math.max(neTop, nwTop, swTop, seTop);
     const minTop = Math.min(neTop, nwTop, swTop, seTop);
@@ -315,11 +315,11 @@ export class Screenshoter {
     const minLeft = Math.min(nwLeft, neLeft, swLeft, seLeft);
 
     // 超出的部分，实际上是不显式的
-    const canvasLeft = Math.abs(pxielToNumber(this.fabricWrapperEl!.style.left));
-    const canvasTop = Math.abs(pxielToNumber(this.fabricWrapperEl!.style.top));
+    const canvasLeft = Math.abs(pixelToNumber(this.fabricWrapperEl!.style.left));
+    const canvasTop = Math.abs(pixelToNumber(this.fabricWrapperEl!.style.top));
 
-    const maskLeft = Math.abs(pxielToNumber(this.mask!.style.left))
-    const maskTop = Math.abs(pxielToNumber(this.mask!.style.top))
+    const maskLeft = Math.abs(pixelToNumber(this.mask!.style.left))
+    const maskTop = Math.abs(pixelToNumber(this.mask!.style.top))
 
     const top = minTop - maskTop + canvasTop;
     const left = minLeft - maskLeft + canvasLeft;
@@ -372,15 +372,15 @@ export class Screenshoter {
     if (toolbar.style.display == 'none') {
       toolbar.style.display = 'block';
     }
-    const neTop = pxielToNumber(resizer.northEast.style.top);
-    const nwTop = pxielToNumber(resizer.northWest.style.top);
-    const swTop = pxielToNumber(resizer.southWest.style.top);
-    const seTop = pxielToNumber(resizer.southEast.style.top);
+    const neTop = pixelToNumber(resizer.northEast.style.top);
+    const nwTop = pixelToNumber(resizer.northWest.style.top);
+    const swTop = pixelToNumber(resizer.southWest.style.top);
+    const seTop = pixelToNumber(resizer.southEast.style.top);
 
-    const nwLeft = pxielToNumber(resizer.northWest.style.left)
-    const neLeft = pxielToNumber(resizer.northEast.style.left);
-    const swLeft = pxielToNumber(resizer.southWest.style.left);
-    const seLeft = pxielToNumber(resizer.southEast.style.left);
+    const nwLeft = pixelToNumber(resizer.northWest.style.left)
+    const neLeft = pixelToNumber(resizer.northEast.style.left);
+    const swLeft = pixelToNumber(resizer.southWest.style.left);
+    const seLeft = pixelToNumber(resizer.southEast.style.left);
 
     const maxTop = Math.max(neTop, nwTop, swTop, seTop);
     const maxLeft = Math.max(nwLeft, neLeft, swLeft, seLeft);
@@ -477,14 +477,14 @@ export class Screenshoter {
     // 调整时，中点位置要重新计算
     this.formatCenterResizer();
 
-    const canvasLeft = pxielToNumber(this.mask!.style.left);
-    const canvasTop = pxielToNumber(this.mask!.style.top);
+    const canvasLeft = pixelToNumber(this.mask!.style.left);
+    const canvasTop = pixelToNumber(this.mask!.style.top);
 
-    const northWestLeft = pxielToNumber(resizer.northWest.style.left);
-    const northWestTop = pxielToNumber(resizer.northWest.style.top);
+    const northWestLeft = pixelToNumber(resizer.northWest.style.left);
+    const northWestTop = pixelToNumber(resizer.northWest.style.top);
 
-    const southEastLeft = pxielToNumber(resizer.southEast.style.left);
-    const southEastTop = pxielToNumber(resizer.southEast.style.top);
+    const southEastLeft = pixelToNumber(resizer.southEast.style.left);
+    const southEastTop = pixelToNumber(resizer.southEast.style.top);
 
     const width = Math.round(southEastLeft - northWestLeft);
     const height = Math.round(southEastTop - northWestTop);
@@ -509,10 +509,10 @@ export class Screenshoter {
 
   formatCenterResizer() {
     const resizer = this.screenshotResizer!;
-    const nwLeft = pxielToNumber(resizer.northWest.style.left)
-    const nwTop = pxielToNumber(resizer.northWest.style.top);
-    const neLeft = pxielToNumber(resizer.northEast.style.left);
-    const swTop = pxielToNumber(resizer.southWest.style.top);
+    const nwLeft = pixelToNumber(resizer.northWest.style.left)
+    const nwTop = pixelToNumber(resizer.northWest.style.top);
+    const neLeft = pixelToNumber(resizer.northEast.style.left);
+    const swTop = pixelToNumber(resizer.southWest.style.top);
 
     const verticalLeft = (nwLeft + neLeft) / 2;
     const horizontalTop = (nwTop + swTop) / 2;

@@ -67,7 +67,8 @@ export default class RectangleOperator implements ImageEditorOperator, OperatorP
       fill: 'transparent',
       stroke: this.color,
       strokeWidth: this.strokeWidth,
-      lockScalingFlip: true
+      lockScalingFlip: true,
+      perPixelTargetFind: true
     })
     canvas.add(this.current);
   }

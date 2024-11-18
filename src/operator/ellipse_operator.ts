@@ -64,7 +64,8 @@ export default class EllipseOperator implements ImageEditorOperator, OperatorPro
       fill: 'transparent',
       stroke: this.color,
       strokeWidth: this.strokeWidth,
-      lockScalingFlip: true
+      lockScalingFlip: true,
+      perPixelTargetFind: true
     })
     canvas.add(this.current);
   }

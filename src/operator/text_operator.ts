@@ -92,7 +92,8 @@ export default class TextOperator implements ImageEditorOperator, OperatorProps 
       top: pointer.y,
       fontSize: this.fontSize,
       fill: this.color,
-      lockScalingFlip: true
+      lockScalingFlip: true,
+      perPixelTargetFind: true
     } as any);
 
     text.setControlVisible('mt', false);

@@ -46,6 +46,7 @@ export default class DrawOperator implements OperatorProps {
   recordPathCreate(event: any) {
     const path = event.path;
     path.hoverCursor = 'default';
+    path.perPixelTargetFind = true;
     path.lockScalingFlip = true;
     this.canvas.renderAll();
     const lastXY = path.getXY();

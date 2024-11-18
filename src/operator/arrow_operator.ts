@@ -60,7 +60,8 @@ export default class ArrowOperator implements ImageEditorOperator, OperatorProps
     const arrow = new Arrow(points, {
       strokeWidth: this.strokeWidth,
       stroke: this.color,
-      lockScalingFlip: true
+      lockScalingFlip: true,
+      perPixelTargetFind: true
     })
     this.current = arrow;
     canvas.add(arrow);
