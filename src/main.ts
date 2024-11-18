@@ -1,6 +1,7 @@
-import { Canvas, FabricImage } from 'fabric';
+import { Canvas, FabricImage, Point } from 'fabric';
 import ElementManager from './element_manager';
 import ImageEditor from './image_editor';
+import { FabricUtils } from './fabric_utils';
 
 class ImageEditorHelper {
 
@@ -211,14 +212,13 @@ class ImageEditorHelper {
     })
 
     FabricImage.fromURL(imageUrl).then(img => {
-      // 使用setX和setY
-      img.setX(0);
-      img.setY(0);
       canvas.backgroundImage = img;
       canvas.backgroundColor = '#FFF';
       // 设置完需要渲染一下
       canvas.renderAll();
       const width = img.width, height = img.height;
+      FabricUtils.setCenterOrigin(img);
+      img.setXY(new Point(width / 2, height / 2));
       resizer(canvas, width, height);
     })
 

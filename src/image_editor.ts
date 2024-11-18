@@ -219,8 +219,10 @@ export default class ImageEditor {
     canvas.clear();
     const elementManger = this.elementManager;
     let ret;
+
     await FabricImage.fromURL(imageDataUrl).then(img => {
       ret = img;
+
       const width = img.width;
       const height = img.height;
       canvas.setDimensions({ width, height })

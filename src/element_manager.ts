@@ -928,125 +928,69 @@ export default class ElementManager {
   flipHorizontal() {
     // 左右翻转时，上下是不要动的，然后左侧多余的部分移动到右侧，右侧多余的部分移动到左侧
     const { right, canvasWidth } = this.getCanvasAreaInfo();
-
-    const previous = new FlipXUndoProps();
-    const current = new FlipXUndoProps();
-    previous.fabricWrapperEl = this.fabricWrapperEl!;
-    current.fabricWrapperEl = this.fabricWrapperEl!;
-
-    previous.left = this.fabricWrapperEl!.style.left;
     // 内容翻转，左偏移变右偏移
     this.fabricWrapperEl!.style.left = -right + 'px';
-    current.left = this.fabricWrapperEl!.style.left;
 
     const canvas = this.imageEditor?.getCanvas()!;
     // 翻转状态换一下
     const backgroundImage = canvas.backgroundImage!;
-    current.backgroundImage = previous.backgroundImage = backgroundImage;
 
     const flipX = backgroundImage!.flipX;
-    previous.flipX = flipX;
     backgroundImage!.flipX = !flipX;
-    current.flipX = backgroundImage!.flipX;
 
     // 左右偏移互换一下
     const x = backgroundImage.getX();
-    const biWidth = backgroundImage.width;
-    const newX = canvasWidth - biWidth - x;
+    const newX = canvasWidth - x;
     backgroundImage.setX(newX);
-    previous.x = x;
-    current.x = newX;
 
     const objs = canvas.getObjects() ?? [];
     for (const obj of objs) {
-      previous.objs.push(obj);
-      current.objs.push(obj);
-
       const objFlipX = obj.flipX;
-      previous.objFlipX.push(objFlipX);
-
       const x = obj.getX()
-      previous.objX.push(x);
-
       const width = obj.width;
       const nx = canvasWidth - width - x;
       obj.flipX = !objFlipX;
       obj.setX(nx);
-
-      current.objFlipX.push(obj.flipX);
-      current.objX.push(nx);
       canvas.setActiveObject(obj);
     }
-
     canvas.renderAll();
-    this.imageEditor!.getHistory().recordFlipXAction(previous, current);
   }
 
   flipVertical() {
     // 上下翻转时，左右是不要动的，然后上侧多余的部分移动到下侧，下侧多余的部分移动到上侧
     const { bottom, canvasHeight } = this.getCanvasAreaInfo();
 
-    const previous = new FlipYUndoProps();
-    const current = new FlipYUndoProps();
-    previous.fabricWrapperEl = this.fabricWrapperEl!;
-    current.fabricWrapperEl = this.fabricWrapperEl!;
-
     // 内容翻转，下偏移变上偏移
-    previous.top = this.fabricWrapperEl!.style.top;
     this.fabricWrapperEl!.style.top = -bottom + 'px';
-    current.top = this.fabricWrapperEl!.style.top;
 
     const canvas = this.imageEditor?.getCanvas()!;
     // 翻转状态换一下
     const backgroundImage = canvas.backgroundImage!;
-    current.backgroundImage = previous.backgroundImage = backgroundImage;
 
     const flipY = backgroundImage!.flipY;
-    previous.flipY = flipY;
     backgroundImage!.flipY = !flipY;
-    current.flipY = backgroundImage!.flipY;
 
     // 上下偏移互换一下
     const y = backgroundImage.getY();
-    const biHeight = backgroundImage.height;
-    const newY = canvasHeight - biHeight - y;
+    const newY = canvasHeight - y;
     backgroundImage.setY(newY);
-    previous.y = y;
-    current.y = newY;
 
     const objs = canvas.getObjects() ?? [];
     for (const obj of objs) {
-      previous.objs.push(obj);
-      current.objs.push(obj);
-
       const objFlipY = obj.flipY;
-      previous.objFlipY.push(objFlipY);
-
       const y = obj.getY()
-      previous.objY.push(y);
-
       const height = obj.height;
       const ny = canvasHeight - height - y;
       obj.flipY = !objFlipY;
       obj.setY(ny);
-
-      current.objFlipY.push(obj.flipY);
-      current.objY.push(ny);
       canvas.setActiveObject(obj);
     }
 
     canvas.renderAll();
-    this.imageEditor!.getHistory().recordFlipYAction(previous, current);
   }
 
   // 顺时针旋转90度
   rotateClockwise() {
-
-    const previous = new RotateProps();
-    const current = new RotateProps();
-    previous.canvasWrapper = current.canvasWrapper = this.canvasWrapper;
-    previous.fabricWrapperEl = current.fabricWrapperEl = this.fabricWrapperEl!;
-    previous.imageEditor = current.imageEditor = this.imageEditor!;
 
     const canvasArea = this.getCanvasAreaInfo();
     const { left, bottom } = canvasArea;
@@ -1054,86 +998,30 @@ export default class ElementManager {
     const { visiableHeight, visiableWidth } = canvasArea;
     const canvas = this.imageEditor!.getCanvas()!;
 
-    previous.canvasHeight = canvasHeight; previous.canvasWidth = canvasWidth;
     // 顺时针旋转90度的时候，长高要做一个互换
     this.imageEditor!.setCanvasDims(canvasHeight, canvasWidth);
-    current.canvasHeight = canvasWidth; current.canvasWidth = canvasHeight;
 
     const fwStyle = this.fabricWrapperEl!.style;
-    previous.left = fwStyle.left;
-    previous.top = fwStyle.top;
     fwStyle.left = (-1) * bottom + 'px';
     fwStyle.top = (-1) * left + 'px';
-    current.left = fwStyle.left;
-    current.top = fwStyle.top;
-
-    // 可见区域也要一同进行变换
-    previous.width = this.canvasWrapper.style.width;
-    previous.height = this.canvasWrapper.style.height;
 
     this.canvasWrapper.style.width = visiableHeight + 'px';
     this.canvasWrapper.style.height = visiableWidth + 'px';
-
-    current.width = this.canvasWrapper.style.width;
-    current.height = this.canvasWrapper.style.height;
 
     const image = canvas.backgroundImage!
     const objs = canvas.getObjects() as FabricObject[] ?? [];
     objs.unshift(image);
 
-    // 还要考虑自带旋转度数的对象
-    const oriAngle = image.angle;
     for (const obj of objs) {
-      const { x, y } = obj.getXY();
-      // 旋转时是按照左上角的顶点进行旋转的
-      // 所以要注意到左上角的位置
-      let newX, newY;
-      // 旋转90度的时候，left变成top(y)，bottom变成left(x)
-      if (oriAngle == 0) {
-        newY = x;
-        // 底部的长度是canvas的长度减去top，减去图片高度
-        const imgBottom = canvasHeight - y - obj.height;
-        // 按照左上角旋转过后，左上角的顶点去了右上角因此还要向右移动一个宽度的位置
-        newX = imgBottom + obj.height;
-      } else if (oriAngle == 90) {
-        // 旋转时，依旧是left(x)变为top(y)，bottom变成left(x)
-        // 但是由于现在已经旋转了，定位的顶点在右上角，所以实际left值要减去一个图片的宽度
-        const imgLeft = x - obj.height;
-        // 实际的bottom值依旧是画板高度减去y值减去底图高度
-        const imgBottom = canvasHeight - y - obj.width;
-
-        // 但是因为旋转了180度，所以要向右平移一个宽度，向下平移一个高度
-        newX = imgBottom + obj.width;
-        newY = imgLeft + obj.height;
-
-      } else if (oriAngle == 180) {
-        // 同上
-        const imgLeft = x - obj.width;
-        const imgBottom = canvasHeight - y;
-        newX = imgBottom;
-        newY = imgLeft + obj.width;
-      } else if (oriAngle == 270) {
-        // 同上
-        const imgLeft = x;
-        const imgBottom = canvasHeight - y;
-        newX = imgBottom;
-        newY = imgLeft;
-      } else {
-        throw Error('不满足预期的度数' + oriAngle)
-      }
-
       const angle = obj.angle;
       const newAngle = (angle + 90) % 360;
       obj.set('angle', newAngle);
-      obj.setXY(new Point(newX, newY));
+      const point = obj.getCenterPoint();
+      console.log(point)
+      const newPoint = new Point(canvasHeight - point.y, point.x);
+      obj.setXY(newPoint, 'center', 'center');
 
-      previous.objs.push(obj);
-      previous.objAngle.push(angle);
-      previous.objPos.push({ x, y })
-
-      current.objs.push(obj);
-      current.objAngle.push(newAngle);
-      current.objPos.push({ x: newX, y: newY });
+      console.log(newPoint);
     }
 
     const shapes = canvas.getObjects() as FabricObject[] ?? [];
@@ -1143,14 +1031,8 @@ export default class ElementManager {
     }
     canvas.renderAll();
 
-    previous.canvasWrapperProps = this.calculateCanvasWrapper();
-
     // 旋转后，整个图会回到界面的正中央
     this.moveCanvasToCenter();
-
-    current.canvasWrapperProps = this.calculateCanvasWrapper();
-
-    this.imageEditor!.getHistory().recordRotateAction(previous, current);
   }
 
   calculateCanvasWrapper() {
