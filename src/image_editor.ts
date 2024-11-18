@@ -76,8 +76,6 @@ export default class ImageEditor {
 
   bindOperators() {
     const rectOperator = this.rectOperator;
-    this.canvas.on('mouse:move', (e: any) => {
-    })
     this.canvas.on('mouse:down', rectOperator.handleMouseDown.bind(rectOperator));
     this.canvas.on('mouse:move', rectOperator.handleMouseMove.bind(rectOperator));
     this.canvas.on('mouse:up', rectOperator.handleMouseUp.bind(rectOperator));

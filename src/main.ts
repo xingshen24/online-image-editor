@@ -204,7 +204,7 @@ class ImageEditorHelper {
     return menu;
   }
 
-  private static initCanvas(dom: HTMLCanvasElement, imageUrl: string, resizer: (canvas: Canvas, width: number, height: number) => void): fabric.Canvas {
+  private static initCanvas(dom: HTMLCanvasElement, imageUrl: string, resizer: (canvas: Canvas, width: number, height: number) => void): Canvas {
 
     // 随便给个默认值，后面初始化的时候改掉
     const canvas = new Canvas(dom, {
