@@ -1,12 +1,10 @@
 import { FabricObject, Point } from "fabric";
-import { CanvasDetailedProps, FabricCanvasProps } from "./history";
 import ImageEditor from "./image_editor";
 import { OperatorProps, OperatorType } from "./image_editor_operator";
 import MosaicOperator from "./operator/mosaic_operator";
 import TextOperator from "./operator/text_operator";
 import { getAbsolutePosition } from "./uitls";
-import { CanvasDimsRecord, CanvasPosRecord, CanvasReshaperAction } from "./undoer/CanvasReshaper";
-import { FabricUtils } from "./fabric_utils";
+import { CanvasDimsRecord, CanvasPosRecord } from "./undoer/CanvasReshaper";
 
 const COLOR_MAP = {
   RED: '#FF0000',

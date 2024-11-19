@@ -24,3 +24,5 @@ dist-ssr
 *.sw?
 
 .VSCodeCounter
+dist.zip
+dist.7z

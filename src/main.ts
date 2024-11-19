@@ -3,7 +3,7 @@ import ElementManager from './element_manager';
 import ImageEditor from './image_editor';
 import { FabricUtils } from './fabric_utils';
 
-class ImageEditorHelper {
+export class ImageEditorHelper {
 
   static currentImageEditor: ImageEditor | undefined;
 
@@ -99,8 +99,8 @@ class ImageEditorHelper {
     style.paddingTop = '4px';
     style.paddingBottom = '4px';
     style.display = 'none';
-    const cancelScreenshot = this.appendMenu(toolbar, './assets/cancel.svg', 8, 0);
-    const confirmScreenshot = this.appendMenu(toolbar, './assets/confirm.svg', 0, 0);
+    const cancelScreenshot = this.appendMenu(toolbar, './assets/cancel.svg', '取消', 8, 0);
+    const confirmScreenshot = this.appendMenu(toolbar, './assets/confirm.svg', '确认', 0, 0);
     parent.appendChild(toolbar);
     return {
       toolbar,
@@ -157,33 +157,33 @@ class ImageEditorHelper {
 
     const ret = {} as any;
 
-    ret.rectangleMenu = this.appendMenu(toolbar, './assets/rect.svg');
-    ret.ellipseMenu = this.appendMenu(toolbar, './assets/circle.svg');
-    ret.arrowMenu = this.appendMenu(toolbar, './assets/arrow.svg');
-    ret.drawMenu = this.appendMenu(toolbar, './assets/draw.svg');
-    ret.textMenu = this.appendMenu(toolbar, './assets/text.svg');
-    ret.mosaicMenu = this.appendMenu(toolbar, './assets/mosaic.svg');
+    ret.rectangleMenu = this.appendMenu(toolbar, './assets/rect.svg', '矩形');
+    ret.ellipseMenu = this.appendMenu(toolbar, './assets/circle.svg', '圆形');
+    ret.arrowMenu = this.appendMenu(toolbar, './assets/arrow.svg', '箭头');
+    ret.drawMenu = this.appendMenu(toolbar, './assets/draw.svg', '绘图');
+    ret.textMenu = this.appendMenu(toolbar, './assets/text.svg', '文本');
+    ret.mosaicMenu = this.appendMenu(toolbar, './assets/mosaic.svg', '马赛克');
 
-    ret.shrinkMenu = this.appendMenu(toolbar, './assets/shrink.svg', 42);
-    ret.extendMenu = this.appendMenu(toolbar, './assets/extend.svg');
-    ret.flipXMenu = this.appendMenu(toolbar, './assets/flipX.svg');
-    ret.flipYMenu = this.appendMenu(toolbar, './assets/flipY.svg');
+    ret.shrinkMenu = this.appendMenu(toolbar, './assets/shrink.svg', '缩减绘制区域', 42);
+    ret.extendMenu = this.appendMenu(toolbar, './assets/extend.svg', '扩展绘制区域');
+    ret.flipXMenu = this.appendMenu(toolbar, './assets/flipX.svg', '水平翻转');
+    ret.flipYMenu = this.appendMenu(toolbar, './assets/flipY.svg', '垂直翻转');
 
 
-    ret.rotateCounterClockwiseMenu = this.appendMenu(toolbar, './assets/rotate.svg');
+    ret.rotateCounterClockwiseMenu = this.appendMenu(toolbar, './assets/rotate.svg', '逆时针旋转');
     ret.rotateCounterClockwiseMenu.style.transform = 'rotateY(180deg)';
-    ret.rotateClockwiseMenu = this.appendMenu(toolbar, './assets/rotate.svg');
-    ret.cropMenu = this.appendMenu(toolbar, './assets/crop.svg');
+    ret.rotateClockwiseMenu = this.appendMenu(toolbar, './assets/rotate.svg', '顺时针旋转');
+    ret.cropMenu = this.appendMenu(toolbar, './assets/crop.svg', '裁剪');
 
-    ret.undoMenu = this.appendMenu(toolbar, './assets/undo.svg', 38);
-    ret.redoMenu = this.appendMenu(toolbar, './assets/redo.svg');
-    ret.resetMenu = this.appendMenu(toolbar, './assets/reset.svg');
-    ret.cancaleMenu = this.appendMenu(toolbar, './assets/cancel.svg', 36);
-    ret.confirmMenu = this.appendMenu(toolbar, './assets/confirm.svg', 0, 0);
+    ret.undoMenu = this.appendMenu(toolbar, './assets/undo.svg', '撤销', 38);
+    ret.redoMenu = this.appendMenu(toolbar, './assets/redo.svg', '恢复');
+    ret.resetMenu = this.appendMenu(toolbar, './assets/reset.svg', '重置');
+    ret.cancaleMenu = this.appendMenu(toolbar, './assets/cancel.svg', '放弃本次编辑', 36);
+    ret.confirmMenu = this.appendMenu(toolbar, './assets/confirm.svg', '保存编辑结果', 0, 0);
     return ret;
   }
 
-  private static appendMenu(topbar: HTMLElement, url: string, marginLeft = 0, marginRight = 8): HTMLElement {
+  private static appendMenu(topbar: HTMLElement, url: string, title: string, marginLeft = 0, marginRight = 8): HTMLElement {
     const menu = document.createElement("div")
     menu.style.display = "inline-block";
     menu.style.width = "24px";
@@ -196,6 +196,7 @@ class ImageEditorHelper {
     }
 
     const icon = document.createElement("i");
+    icon.title = title;
     icon.style.display = "block";
     icon.style.width = "24px";
     icon.style.height = "24px";

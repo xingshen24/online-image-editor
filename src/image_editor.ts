@@ -11,6 +11,7 @@ import OperationHistory from "./history";
 import { Screenshoter } from "./screenshoter";
 import { ImageEditorShortcutManager } from "./shortcut_manager";
 import { FabricUtils } from "./fabric_utils";
+import { ImageEditorHelper } from "./main";
 
 export default class ImageEditor {
 
@@ -189,11 +190,13 @@ export default class ImageEditor {
       top: 0,
     }))
 
+    const dpr = devicePixelRatio || 1;
     const image = tempCanvas.toDataURL({
       format: 'png',
-      left: start.x,
-      top: start.y,
-      width, height,
+      left: start.x * dpr,
+      top: start.y * dpr,
+      width: width * dpr,
+      height: height * dpr,
       multiplier: 1
     });
 
