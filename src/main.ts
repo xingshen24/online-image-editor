@@ -321,4 +321,4 @@ export class ImageEditorHelper {
   }
 }
 
-ImageEditorHelper.currentImageEditor = ImageEditorHelper.createImageEditor('/basic.jpg');
+ImageEditorHelper.currentImageEditor = ImageEditorHelper.createImageEditor('./assets/basic.jpg');
