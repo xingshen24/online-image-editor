@@ -1,3 +1,4 @@
+import path, { format } from 'path'
 import { defineConfig } from 'vite'
 import { viteStaticCopy } from 'vite-plugin-static-copy'
 
@@ -13,5 +14,11 @@ export default defineConfig({
     })
   ],
   build: {
+    lib: {
+      entry: path.resolve(__dirname, 'src/index.ts'),
+      name: 'lansetechOnlineImageEditor',
+      fileName: (format) => `online-image-editor-${format}.js`,
+      formats: ['es'], // 生成 UMD 和 ES Module 格式
+    }
   }
 })

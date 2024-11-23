@@ -14,7 +14,6 @@ export class ImageEditorHelper {
   static CANVAS_DEFAULT_HEIGHT = 100;
 
   static createImageEditor(imageUrl: string) {
-
     const elements = this.createElement()
     const eleManager = new ElementManager(elements);
 
@@ -321,4 +320,4 @@ export class ImageEditorHelper {
   }
 }
 
-ImageEditorHelper.currentImageEditor = ImageEditorHelper.createImageEditor('./assets/basic.jpg');
+// ImageEditorHelper.currentImageEditor = ImageEditorHelper.createImageEditor('./assets/basic.jpg');
