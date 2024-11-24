@@ -1,19 +1,25 @@
-import { Canvas, FabricImage, FabricObject, Point, StaticCanvas } from "fabric";
+import { Canvas, FabricImage, Point, StaticCanvas } from "fabric";
+import ElementManager from "./element_manager";
+import { FabricUtils } from "./fabric_utils";
+import OperationHistory from "./history";
+import { OperatorType } from "./image_editor_operator";
 import ArrowOperator from "./operator/arrow_operator";
 import DrawOperator from "./operator/draw_operator";
 import EllipseOperator from "./operator/ellipse_operator";
-import { OperatorType } from "./image_editor_operator";
-import ElementManager from "./element_manager";
 import MosaicOperator from "./operator/mosaic_operator";
 import RectangleOperator from "./operator/rect_operator";
 import TextOperator from "./operator/text_operator";
-import OperationHistory from "./history";
 import { Screenshoter } from "./screenshoter";
 import { ImageEditorShortcutManager } from "./shortcut_manager";
-import { FabricUtils } from "./fabric_utils";
-import { ImageEditorHelper } from "./main";
 
 export default class ImageEditor {
+
+  // 控制图片编辑器的整体大小
+  private globalScale = 1;
+
+  public static MIN_SCALE = 0.2;
+
+  public static MAX_SCALE = 2;
 
   private canvas: Canvas;
 
@@ -251,5 +257,15 @@ export default class ImageEditor {
       this.canvas.remove(active);
       this.history.recordRemoveAction(active);
     }
+  }
+
+
+  scale(scale: number) {
+    const newScale = this.globalScale + scale;
+    if (newScale < ImageEditor.MIN_SCALE || newScale > ImageEditor.MAX_SCALE) {
+      return false;
+    }
+    this.globalScale = newScale;
+    return true;
   }
 }

@@ -152,7 +152,7 @@ export class ImageEditorHelper {
     toolbar.style.backgroundColor = "#e5e6e7";
     toolbar.style.borderRadius = "4px 4px 4px 4px";
     toolbar.style.height = "24px";
-    toolbar.style.width = "690px";
+    toolbar.style.width = "780px";
 
     const ret = {} as any;
 
@@ -162,12 +162,15 @@ export class ImageEditorHelper {
     ret.drawMenu = this.appendMenu(toolbar, './assets/draw.svg', '绘图');
     ret.textMenu = this.appendMenu(toolbar, './assets/text.svg', '文本');
     ret.mosaicMenu = this.appendMenu(toolbar, './assets/mosaic.svg', '马赛克');
+    ret.editPictureMenu = this.appendMenu(toolbar, './assets/edit.svg', '编辑底图');
 
-    ret.shrinkMenu = this.appendMenu(toolbar, './assets/shrink.svg', '缩减绘制区域', 42);
+    ret.scaleUpMenu = this.appendMenu(toolbar, './assets/scaleUp.svg', '放大所有元素', 42);
+    ret.scaleDownMenu = this.appendMenu(toolbar, './assets/scaleDown.svg', '缩小所有元素');
+
+    ret.shrinkMenu = this.appendMenu(toolbar, './assets/shrink.svg', '缩减绘制区域',);
     ret.extendMenu = this.appendMenu(toolbar, './assets/extend.svg', '扩展绘制区域');
     ret.flipXMenu = this.appendMenu(toolbar, './assets/flipX.svg', '水平翻转');
     ret.flipYMenu = this.appendMenu(toolbar, './assets/flipY.svg', '垂直翻转');
-
 
     ret.rotateCounterClockwiseMenu = this.appendMenu(toolbar, './assets/rotate.svg', '逆时针旋转');
     ret.rotateCounterClockwiseMenu.style.transform = 'rotateY(180deg)';
@@ -320,4 +323,4 @@ export class ImageEditorHelper {
   }
 }
 
-// ImageEditorHelper.currentImageEditor = ImageEditorHelper.createImageEditor('./assets/basic.jpg');
+ImageEditorHelper.currentImageEditor = ImageEditorHelper.createImageEditor('./assets/basic.jpg');

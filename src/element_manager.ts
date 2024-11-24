@@ -116,6 +116,10 @@ export default class ElementManager {
   private textMenu: HTMLDivElement;
   private mosaicMenu: HTMLDivElement;
 
+  private scaleUpMenu: HTMLDivElement;
+  private scaleDownMenu: HTMLDivElement;
+  private editPictureMenu: HTMLDivElement;
+
   private shrinkMenu: HTMLDivElement;
   private extendMenu: HTMLDivElement;
 
@@ -193,6 +197,11 @@ export default class ElementManager {
     this.menuMap.set(OperatorType.TEXT, this.textMenu);
     this.mosaicMenu = options.mosaicMenu;
     this.menuMap.set(OperatorType.MOSAIC, this.mosaicMenu);
+    this.editPictureMenu = options.editPictureMenu;
+    this.menuMap.set(OperatorType.EDIT_BASEMAP, this.editPictureMenu);
+
+    this.scaleUpMenu = options.scaleUpMenu;
+    this.scaleDownMenu = options.scaleDownMenu;
 
     this.shrinkMenu = options.shrinkMenu;
     this.extendMenu = options.extendMenu;
@@ -441,13 +450,27 @@ export default class ElementManager {
     this.drawMenu.onclick = () => { this.switchOperator(OperatorType.DRAW) };
     this.mosaicMenu.onclick = () => { this.switchOperator(OperatorType.MOSAIC) };
     this.textMenu.onclick = () => { this.switchOperator(OperatorType.TEXT) };
+    this.editPictureMenu.onclick = () => { this.switchOperator(OperatorType.EDIT_BASEMAP); }
+
+    const history = this.imageEditor!.getHistory();
+    this.scaleUpMenu.onclick = () => {
+      this.scaleObjects(0.1);
+      const undo = () => this.scaleObjects(-0.1);
+      const redo = () => this.scaleObjects(0.1);
+      history.recordReverseAction(undo, redo);
+    }
+    this.scaleDownMenu.onclick = () => {
+      this.scaleObjects(-0.1);
+      const undo = () => this.scaleObjects(0.1);
+      const redo = () => this.scaleObjects(-0.1);
+      history.recordReverseAction(undo, redo);
+    }
 
     this.shrinkMenu.onclick = () => { this.shrinkCanvas(); }
     this.extendMenu.onclick = () => { this.extendsCanvas(); }
 
     this.flipXMenu.onclick = () => {
       this.flipHorizontal();
-      const history = this.imageEditor!.getHistory();
       history.recordReverseAction(() => this.flipHorizontal(), () => this.flipHorizontal());
     }
     this.flipYMenu.onclick = () => {
@@ -495,8 +518,6 @@ export default class ElementManager {
     this.confirmMenu.onclick = () => { this.downloadAreaImage(); }
   }
 
-
-
   switchOperator(type: OperatorType) {
     const imageEditor = this.imageEditor!;
     const previous = imageEditor.getOperatorType();
@@ -516,6 +537,56 @@ export default class ElementManager {
       currEle.style.backgroundColor = '#FFF';
       this.showOptionBar(currEle);
     }
+  }
+
+  scaleObjects(scaleFactor: number) {
+    const canScale = this.imageEditor!.scale(scaleFactor);
+    if (!canScale) {
+      return;
+    }
+    const canvas = this.imageEditor!.getCanvas();
+    const image = canvas.backgroundImage!;
+
+    const imageX = image.getX();
+    const imageY = image.getY();
+
+    const objects = canvas.getObjects();
+
+    const widthBefore = image.getScaledWidth();
+    const heightBefore = image.getScaledHeight();
+
+    const imgScaleX = image.scaleX + scaleFactor;
+    const imageScaleY = image.scaleY + scaleFactor;
+    image.scaleX = imgScaleX > 0.1 ? imgScaleX : 0.1;
+    image.scaleY = imageScaleY > 0.1 ? imageScaleY : 0.1;
+
+    image.setCoords();
+
+    const changeXPercent = image.getScaledWidth() / widthBefore;
+    const changeYPercent = image.getScaledHeight() / heightBefore;
+
+
+    for (const obj of objects) {
+      const scaleX = obj.scaleX + scaleFactor;
+      const scaleY = obj.scaleY + scaleFactor;
+      obj.scaleX = scaleX > 0.1 ? scaleX : 0.1;
+      obj.scaleY = scaleY > 0.1 ? scaleY : 0.1;
+
+      const posX = obj.getX();
+      const posY = obj.getY();
+
+      const distanceX = (imageX - posX) * changeXPercent;
+      const distanceY = (imageY - posY) * changeYPercent;
+
+      console.log(posX, posY, distanceX, distanceY)
+
+      obj.setX(imageX - distanceX);
+      obj.setY(imageY - distanceY);
+
+      obj.setCoords();
+    }
+    canvas.discardActiveObject();
+    canvas.renderAll();
   }
 
   hideOptionBar() {
