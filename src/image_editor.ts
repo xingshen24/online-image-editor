@@ -1,4 +1,4 @@
-import { Canvas, FabricImage, Point, StaticCanvas } from "fabric";
+import { Canvas, FabricImage, Point, StaticCanvas, Transform } from "fabric";
 import ElementManager from "./element_manager";
 import { FabricUtils } from "./fabric_utils";
 import OperationHistory from "./history";
@@ -26,6 +26,8 @@ export default class ImageEditor {
 
   private canvas: Canvas;
 
+  private currTransform: Transform | null = null;
+
   private screenshoter: Screenshoter;
 
   private history: OperationHistory;
@@ -50,7 +52,15 @@ export default class ImageEditor {
 
   private shortcutManager: ImageEditorShortcutManager;
 
-  constructor(canvas: Canvas, elementManager: ElementManager) {
+  private readonly confirmFn: (dataUrl: string) => void;
+
+  private readonly cancelFn: () => void;
+
+  constructor(canvas: Canvas, elementManager: ElementManager
+    , confirm: (dataUrl: string) => void, cancel: () => void
+  ) {
+    this.confirmFn = confirm;
+    this.cancelFn = cancel;
     this.elementManager = elementManager;
     this.canvas = canvas;
     const image = canvas.getObjects()[0];
@@ -94,6 +104,7 @@ export default class ImageEditor {
     this.elementManager.init(this);
     this.elementManager.bindEvents();
     this.screenshoter.init(this, this.elementManager);
+    FabricUtils.setCornerControlsOnly(this.backgroundImage!, this);
   }
 
   bindOperators() {
@@ -117,8 +128,18 @@ export default class ImageEditor {
     this.canvas.on('mouse:down:before', drawOperator.tryToStartDraw.bind(drawOperator))
     this.canvas.on('mouse:up', drawOperator.tryToFinishDraw.bind(drawOperator))
     const mosaicOperator = this.mosaicOperator;
-    this.canvas.on('mouse:down:before', mosaicOperator.tryToStartMosaic.bind(mosaicOperator))
-    this.canvas.on('mouse:up', mosaicOperator.tryToFinishMosaic.bind(mosaicOperator))
+    this.canvas.on('mouse:down:before', mosaicOperator.tryToStartMosaic.bind(mosaicOperator));
+    this.canvas.on('mouse:up', mosaicOperator.tryToFinishMosaic.bind(mosaicOperator));
+
+    this.canvas.on('before:transform', (e) => {
+      this.currTransform = e.transform;
+    });
+
+    this.canvas.on('mouse:up', () => {
+      if (!!this.currTransform) {
+        this.currTransform = null;
+      }
+    })
   }
 
   getCanvas() {
@@ -245,14 +266,15 @@ export default class ImageEditor {
 
     await FabricImage.fromURL(imageDataUrl).then(img => {
       ret = img;
-
+      img.evented = false;
+      img.selectable = false;
       const width = img.width;
       const height = img.height;
       canvas.setDimensions({ width, height })
       FabricUtils.setCenterOrigin(img);
       img.setXY(new Point(width / 2, height / 2));
       this.backgroundImage = img;
-      FabricUtils.setCornerControlsOnly(img);
+      FabricUtils.setCornerControlsOnly(img, this);
 
       const lastXY = img.getXY();
       const lastScale = {
@@ -310,5 +332,17 @@ export default class ImageEditor {
 
   getBackgroundImage() {
     return this.backgroundImage;
+  }
+
+  confirm(dataUrl: string) {
+    this.confirmFn(dataUrl);
+  }
+
+  cancel() {
+    this.cancelFn();
+  }
+
+  getTransformer() {
+    return this.currTransform;
   }
 }

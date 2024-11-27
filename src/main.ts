@@ -13,30 +13,35 @@ export class ImageEditorHelper {
 
   static CANVAS_DEFAULT_HEIGHT = 100;
 
-  static async createImageEditor(imageUrl: string) {
-    const elements = this.createElement()
-    const eleManager = new ElementManager(elements);
+  static async createImageEditor(imageUrl: string
+    , confirm = (_imgBase64: string) => { }
+    , cancel = () => { }
+    , parent: HTMLElement = document.body
+    , head: HTMLElement = document.head) {
+    const elements = this.createElement(parent)
+    const eleManager = new ElementManager(elements, parent, head);
     const canvas = await this.initCanvas(elements.canvas, imageUrl);
     const image = canvas.getObjects()[0];
     if (!(image instanceof FabricImage)) {
       throw new Error("unable to load background image");
     }
     this.resizeCanvas(canvas, eleManager, image.width, image.height);
-    const editor = new ImageEditor(canvas, eleManager);
+    const editor = new ImageEditor(canvas, eleManager, confirm, cancel);
     editor.init();
     return editor;
   }
 
-  private static createElement(): Record<string, any> {
+  private static createElement(parent: HTMLElement): Record<string, any> {
 
     const width = this.CANVAS_DEFAULT_WIDTH, height = this.CANVAS_DEFAULT_HEIGHT;
 
-    const wrapper = document.getElementById("app")!;
+    const wrapper = document.createElement('div');
     wrapper.style.width = '100%';
     wrapper.style.height = '100%';
     wrapper.style.position = 'absolute';
     wrapper.style.visibility = 'hidden';
-    document.body.appendChild(wrapper);
+    wrapper.style.backgroundColor = 'gainsboro'
+    parent.appendChild(wrapper);
 
     const toolbar = document.createElement("div");
     // 防止wrapper把它盖住了
@@ -76,9 +81,9 @@ export class ImageEditorHelper {
 
     canvasWrapper.append(canvas);
     wrapper.appendChild(canvasWrapper)
-    document.body.appendChild(toolbar)
+    parent.appendChild(toolbar)
     wrapper.appendChild(screenshotCanvas);
-    document.body.appendChild(wrapper);
+    parent.appendChild(wrapper);
 
     const screenshotResizer = this.createScreenshotResizers(wrapper);
     const screenshotToolbar = this.createScreenshotToolbar(wrapper);
@@ -88,6 +93,7 @@ export class ImageEditorHelper {
     } as any;
     return rets;
   }
+
   static createScreenshotToolbar(parent: HTMLElement) {
     const toolbar = document.createElement("div");
     const style = toolbar.style;
@@ -181,7 +187,7 @@ export class ImageEditorHelper {
     ret.undoMenu = this.appendMenu(toolbar, './assets/undo.svg', '撤销', 38);
     ret.redoMenu = this.appendMenu(toolbar, './assets/redo.svg', '恢复');
     ret.resetMenu = this.appendMenu(toolbar, './assets/reset.svg', '重置');
-    ret.cancaleMenu = this.appendMenu(toolbar, './assets/cancel.svg', '放弃本次编辑', 36);
+    ret.cancelMenu = this.appendMenu(toolbar, './assets/cancel.svg', '放弃本次编辑', 36);
     ret.confirmMenu = this.appendMenu(toolbar, './assets/confirm.svg', '保存编辑结果', 0, 0);
     return ret;
   }
@@ -225,7 +231,6 @@ export class ImageEditorHelper {
       canvas.backgroundColor = '#FFF';
       img.evented = false;
       img.selectable = false;
-      FabricUtils.setCornerControlsOnly(img);
       canvas.add(img)
       canvas.sendObjectToBack(img);
       // 设置完需要渲染一下

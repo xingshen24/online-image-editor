@@ -51,6 +51,9 @@ export default class ElementManager {
 
   private imageEditor: ImageEditor | null = null;
 
+  private parent: HTMLElement;
+  private head: HTMLElement;
+
   readonly canvasWrapper: HTMLDivElement;
   readonly canvas: HTMLCanvasElement;
   private fabricWrapperEl: HTMLDivElement | null = null;
@@ -160,7 +163,10 @@ export default class ElementManager {
   private initWrapperLeft: string = '';
   private initWrapperTop: string = '';
 
-  constructor(options: any) {
+  constructor(options: any, parent: HTMLElement, head: HTMLElement) {
+
+    this.parent = parent;
+    this.head = head;
 
     this.wrapper = options.wrapper;
     this.canvas = options.canvas;
@@ -296,7 +302,7 @@ export default class ElementManager {
       }
     `
     style.appendChild(document.createTextNode(css));
-    document.head.appendChild(style);
+    this.head.appendChild(style);
     ElementManager.HAS_CURSOR_CSS_ADDED = true;
 
     this.northResizer.classList.add('north-cursor-resize');
@@ -431,8 +437,8 @@ export default class ElementManager {
       }
     `
     style.appendChild(document.createTextNode(css));
-    document.head.appendChild(style);
-    document.body.append(wrapper);
+    this.head.appendChild(style);
+    this.parent.append(wrapper);
     return {
       optionBar: wrapper,
       small, normal, big, red, orangle, green, blue, black, white, grey,
@@ -515,7 +521,15 @@ export default class ElementManager {
 
     this.resetMenu.onclick = () => { this.resetImageEditor(); }
 
-    this.confirmMenu.onclick = () => { this.downloadAreaImage(); }
+    this.confirmMenu.onclick = () => {
+      imageEditor.confirm(this.downloadAreaImage());
+      this.destory();
+    }
+
+    this.cancelMenu.onclick = () => {
+      imageEditor.cancel();
+      this.destory();
+    }
   }
 
   switchOperator(type: OperatorType) {
@@ -1521,11 +1535,7 @@ export default class ElementManager {
     const top = (-1) * pixelToNumber(this.fabricWrapperEl!.style.top)
     const start = new Point(left, top);
     const end = new Point(left + width, top + height);
-    const image = this.imageEditor!.getAreaImageInfo(start, end);
-    const link = document.createElement("a");
-    link.href = image;
-    link.download = 'image.png';
-    link.click();
+    return this.imageEditor!.getAreaImageInfo(start, end);
   }
 
   destory() {

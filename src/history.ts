@@ -178,8 +178,6 @@ class EllipseScaleAction extends ScaleAction {
     super(canvas, object, previousWidth, previousHeight, previousX, previousY);
     this.previousRX = previousRX;
     this.previousRY = previousRY;
-    console.log(this.previousRX)
-    console.log(this.previousRY)
     this.currentRX = object.rx;
     this.currentRY = object.ry;
   }

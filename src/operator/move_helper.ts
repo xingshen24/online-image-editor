@@ -102,7 +102,6 @@ export default class FabricObjectChangeHelper {
       const dim = obj.get('lastDim');
       const pos = obj.get('lastXY');
       const rxy = obj.get('lastRXY');
-      console.log(rxy)
       const width = dim.width;
       const height = dim.height;
       const rx = rxy.rx;
