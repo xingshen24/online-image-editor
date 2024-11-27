@@ -109,8 +109,8 @@ export default class RectangleOperator implements ImageEditorOperator, OperatorP
       FabricObjectChangeHelper.listenMove(this.current!, this.imageEditor.getHistory());
       FabricObjectChangeHelper.listenScale(this.current!, this.imageEditor.getHistory());
       this.imageEditor.getHistory().recordCreateAction(this.current!);
-      this.canvas.setActiveObject(this.current!);
       this.current!.setCoords();
+      this.canvas.setActiveObject(this.current!);
     }
 
   }

@@ -13,14 +13,15 @@ export class ImageEditorHelper {
 
   static CANVAS_DEFAULT_HEIGHT = 100;
 
-  static createImageEditor(imageUrl: string) {
+  static async createImageEditor(imageUrl: string) {
     const elements = this.createElement()
     const eleManager = new ElementManager(elements);
-
-    const resizer = (canvas: Canvas, width: number, height: number) => {
-      this.resizeCanvas(canvas, eleManager, width, height);
+    const canvas = await this.initCanvas(elements.canvas, imageUrl);
+    const image = canvas.getObjects()[0];
+    if (!(image instanceof FabricImage)) {
+      throw new Error("unable to load background image");
     }
-    const canvas = this.initCanvas(elements.canvas, imageUrl, resizer);
+    this.resizeCanvas(canvas, eleManager, image.width, image.height);
     const editor = new ImageEditor(canvas, eleManager);
     editor.init();
     return editor;
@@ -212,22 +213,26 @@ export class ImageEditorHelper {
     return menu;
   }
 
-  private static initCanvas(dom: HTMLCanvasElement, imageUrl: string, resizer: (canvas: Canvas, width: number, height: number) => void): Canvas {
+  private static async initCanvas(dom: HTMLCanvasElement, imageUrl: string): Promise<Canvas> {
 
     // 随便给个默认值，后面初始化的时候改掉
     const canvas = new Canvas(dom, {
-      width: this.CANVAS_DEFAULT_WIDTH, height: this.CANVAS_DEFAULT_HEIGHT
+      width: this.CANVAS_DEFAULT_WIDTH, height: this.CANVAS_DEFAULT_HEIGHT,
+      preserveObjectStacking: true
     })
 
-    FabricImage.fromURL(imageUrl).then(img => {
-      canvas.backgroundImage = img;
+    await FabricImage.fromURL(imageUrl).then(img => {
       canvas.backgroundColor = '#FFF';
+      img.evented = false;
+      img.selectable = false;
+      FabricUtils.setCornerControlsOnly(img);
+      canvas.add(img)
+      canvas.sendObjectToBack(img);
       // 设置完需要渲染一下
       canvas.renderAll();
       const width = img.width, height = img.height;
       FabricUtils.setCenterOrigin(img);
       img.setXY(new Point(width / 2, height / 2));
-      resizer(canvas, width, height);
     })
 
     return canvas;
@@ -323,4 +328,4 @@ export class ImageEditorHelper {
   }
 }
 
-ImageEditorHelper.currentImageEditor = ImageEditorHelper.createImageEditor('./assets/basic.jpg');
+ImageEditorHelper.currentImageEditor = await ImageEditorHelper.createImageEditor('./assets/basic.jpg');

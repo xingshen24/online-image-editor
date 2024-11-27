@@ -1,4 +1,4 @@
-import { Canvas, FabricObject } from "fabric";
+import { Canvas, FabricImage, FabricObject } from "fabric";
 import { OperationAction } from "../history";
 
 export class CanvasSnapshot {
@@ -17,7 +17,6 @@ export class CanvasSnapshot {
   readonly canvasWidth: number;
   readonly canvasHeight: number;
 
-  readonly backgroundImage: FabricObject;
   readonly objects: FabricObject[];
 
   constructor(canvasWrapper: HTMLElement, fabricWrapperEl: HTMLElement, canvas: Canvas) {
@@ -36,7 +35,6 @@ export class CanvasSnapshot {
     this.fabricWrapperEl = fabricWrapperEl;
     this.canvas = canvas;
 
-    this.backgroundImage = canvas.backgroundImage!
     this.objects = this.canvas.getObjects();
   }
 
@@ -50,7 +48,6 @@ export class CanvasSnapshot {
     this.fabricWrapperEl.style.left = this.fwLeft;
 
     this.canvas.setDimensions({ width: this.canvasWidth, height: this.canvasHeight });
-    this.canvas.backgroundImage = this.backgroundImage;
     const originObjects = this.canvas.getObjects();
 
     for (const object of originObjects) {

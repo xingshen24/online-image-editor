@@ -1,4 +1,4 @@
-import { FabricObject } from "fabric";
+import { controlsUtils, FabricObject } from "fabric";
 
 export class FabricUtils {
 
@@ -6,5 +6,14 @@ export class FabricUtils {
     fo.originX = 'center'
     fo.originY = 'center'
   }
-  
+
+  public static setCornerControlsOnly(fo: FabricObject) {
+    console.log(fo)
+    fo.setControlsVisibility({
+      tl: true,  // 左上角
+      tr: true,  // 右上角
+      bl: true,  // 左下角
+      br: true,  // 右下角
+    });
+  }
 }

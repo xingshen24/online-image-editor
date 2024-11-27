@@ -526,7 +526,16 @@ export default class ElementManager {
     } else {
       imageEditor.changeOperatorType(type);
     }
+
+    if (previous == OperatorType.EDIT_BASEMAP) {
+      this.setBackgroundEnable(false);
+    }
+
     const current = imageEditor.getOperatorType();
+    if (current == OperatorType.EDIT_BASEMAP) {
+      this.setBackgroundEnable(true);
+    }
+
     if (previous != OperatorType.NONE) {
       const preEle = this.menuMap.get(previous);
       preEle.style.backgroundColor = 'transparent';
@@ -535,7 +544,9 @@ export default class ElementManager {
     if (current != OperatorType.NONE) {
       const currEle = this.menuMap.get(current);
       currEle.style.backgroundColor = '#FFF';
-      this.showOptionBar(currEle);
+      if (current != OperatorType.EDIT_BASEMAP) {
+        this.showOptionBar(currEle);
+      }
     }
   }
 
@@ -545,7 +556,7 @@ export default class ElementManager {
       return;
     }
     const canvas = this.imageEditor!.getCanvas();
-    const image = canvas.backgroundImage!;
+    const image = this.imageEditor!.getBackgroundImage();
 
     const imageX = image.getX();
     const imageY = image.getY();
@@ -567,6 +578,10 @@ export default class ElementManager {
 
 
     for (const obj of objects) {
+      if (obj === image) {
+        continue;
+      }
+
       const scaleX = obj.scaleX + scaleFactor;
       const scaleY = obj.scaleY + scaleFactor;
       obj.scaleX = scaleX > 0.1 ? scaleX : 0.1;
@@ -578,14 +593,34 @@ export default class ElementManager {
       const distanceX = (imageX - posX) * changeXPercent;
       const distanceY = (imageY - posY) * changeYPercent;
 
-      console.log(posX, posY, distanceX, distanceY)
-
       obj.setX(imageX - distanceX);
       obj.setY(imageY - distanceY);
 
       obj.setCoords();
     }
     canvas.discardActiveObject();
+    canvas.renderAll();
+  }
+
+  setBackgroundEnable(enable: boolean) {
+    const imageEditor = this.imageEditor!;
+    const canvas = imageEditor.getCanvas();
+    const backgroundImage = imageEditor.getBackgroundImage();
+    const objects = canvas.getObjects();
+    backgroundImage.evented = enable;
+    backgroundImage.selectable = enable;
+    for (const obj of objects) {
+      if (obj === backgroundImage) {
+        continue;
+      }
+      obj.evented = !enable;
+      obj.selectable = !enable;
+    }
+    if (enable) {
+      canvas.setActiveObject(backgroundImage);
+    } else {
+      canvas.discardActiveObject();
+    }
     canvas.renderAll();
   }
 
@@ -960,7 +995,7 @@ export default class ElementManager {
   shrinkCanvas() {
 
     const canvas = this.imageEditor!.getCanvas();
-    const image = canvas.backgroundImage!;
+    const image = this.imageEditor!.getBackgroundImage();
     const point = image.getXY();
 
     const previous = new CanvasDimsRecord(this.canvasWrapper, this.fabricWrapperEl!, canvas);
@@ -1010,7 +1045,7 @@ export default class ElementManager {
   extendsCanvas() {
 
     const canvas = this.imageEditor!.getCanvas();
-    const image = canvas.backgroundImage!;
+    const image = this.imageEditor!.getBackgroundImage();
 
     const { visiableHeight, visiableWidth, left, top, canvasHeight, canvasWidth } = this.getCanvasAreaInfo();
 
@@ -1121,7 +1156,7 @@ export default class ElementManager {
 
     const canvas = this.imageEditor?.getCanvas()!;
     // 翻转状态换一下
-    const backgroundImage = canvas.backgroundImage!;
+    const backgroundImage = this.imageEditor!.getBackgroundImage();
 
     const flipX = backgroundImage!.flipX;
     backgroundImage!.flipX = !flipX;
@@ -1133,12 +1168,15 @@ export default class ElementManager {
 
     const objs = canvas.getObjects() ?? [];
     for (const obj of objs) {
+      if (obj === backgroundImage) {
+        continue;
+      }
       const objFlipX = obj.flipX;
       const x = obj.getX()
       const nx = canvasWidth - x;
       obj.flipX = !objFlipX;
       obj.setX(nx);
-      canvas.setActiveObject(obj);
+      obj.setCoords();
     }
     canvas.renderAll();
   }
@@ -1152,7 +1190,7 @@ export default class ElementManager {
 
     const canvas = this.imageEditor?.getCanvas()!;
     // 翻转状态换一下
-    const backgroundImage = canvas.backgroundImage!;
+    const backgroundImage = this.imageEditor!.getBackgroundImage();
 
     const flipY = backgroundImage!.flipY;
     backgroundImage!.flipY = !flipY;
@@ -1164,6 +1202,9 @@ export default class ElementManager {
 
     const objs = canvas.getObjects() ?? [];
     for (const obj of objs) {
+      if (obj === backgroundImage) {
+        continue;
+      }
       const objFlipY = obj.flipY;
       const y = obj.getY()
       const ny = canvasHeight - y;
@@ -1194,9 +1235,7 @@ export default class ElementManager {
     this.canvasWrapper.style.width = visiableHeight + 'px';
     this.canvasWrapper.style.height = visiableWidth + 'px';
 
-    const image = canvas.backgroundImage!
     const objs = canvas.getObjects() as FabricObject[] ?? [];
-    objs.unshift(image);
 
     for (const obj of objs) {
       const angle = obj.angle;
@@ -1209,7 +1248,7 @@ export default class ElementManager {
 
     const shapes = canvas.getObjects() as FabricObject[] ?? [];
     for (const shape of shapes) {
-      canvas.setActiveObject(shape);
+      // canvas.setActiveObject(shape);
       shape.setCoords();
     }
     canvas.renderAll();
@@ -1238,9 +1277,7 @@ export default class ElementManager {
     this.canvasWrapper.style.width = visiableHeight + 'px';
     this.canvasWrapper.style.height = visiableWidth + 'px';
 
-    const image = canvas.backgroundImage!
     const objs = canvas.getObjects() as FabricObject[] ?? [];
-    objs.unshift(image);
 
     // 还要考虑自带旋转度数的对象
     for (const obj of objs) {
@@ -1254,7 +1291,7 @@ export default class ElementManager {
 
     const shapes = canvas.getObjects() as FabricObject[] ?? [];
     for (const shape of shapes) {
-      canvas.setActiveObject(shape);
+      // canvas.setActiveObject(shape);
       shape.setCoords();
     }
     canvas.renderAll();
@@ -1457,7 +1494,7 @@ export default class ElementManager {
 
   resetImageEditor() {
     const canvas = this.imageEditor!.getCanvas()
-    const image = canvas.backgroundImage!;
+    const image = this.imageEditor!.getBackgroundImage();
     const width = image.width;
     const height = image.height;
     this.imageEditor!.setCanvasDims(width, height);

@@ -11,6 +11,7 @@ import RectangleOperator from "./operator/rect_operator";
 import TextOperator from "./operator/text_operator";
 import { Screenshoter } from "./screenshoter";
 import { ImageEditorShortcutManager } from "./shortcut_manager";
+import FabricObjectChangeHelper from "./operator/move_helper";
 
 export default class ImageEditor {
 
@@ -20,6 +21,8 @@ export default class ImageEditor {
   public static MIN_SCALE = 0.2;
 
   public static MAX_SCALE = 2;
+
+  protected backgroundImage: FabricImage;
 
   private canvas: Canvas;
 
@@ -50,7 +53,25 @@ export default class ImageEditor {
   constructor(canvas: Canvas, elementManager: ElementManager) {
     this.elementManager = elementManager;
     this.canvas = canvas;
+    const image = canvas.getObjects()[0];
+    if (!(image instanceof FabricImage)) {
+      throw new Error("unable to load background image");
+    }
+    this.backgroundImage = image;
     this.history = new OperationHistory(this);
+
+    // 这段代码考虑移动到后面去
+    const lastXY = image.getXY();
+    const lastScale = {
+      x: image.scaleX,
+      y: image.scaleY
+    }
+    image.set('lastXY', lastXY);
+    image.set('lastDim', lastScale);
+
+    FabricObjectChangeHelper.listenMove(image, this.history);
+    FabricObjectChangeHelper.listenScale(image, this.history);
+
     this.rectOperator = new RectangleOperator(this);
     this.ellipseOperator = new EllipseOperator(this);
     this.arrowOperator = new ArrowOperator(this);
@@ -119,12 +140,6 @@ export default class ImageEditor {
     }
     const current = type;
     this.operatorType = current;
-    if (current == OperatorType.NONE) {
-      // this.canvas.getObjects().forEach((obj: FabricObject) => {
-      //   // 重新调整完后，要将对象激活一下，这或许是个坑？
-      //   this.canvas.setActiveObject(obj);
-      // })
-    }
   }
 
   getHistory(): OperationHistory {
@@ -144,12 +159,15 @@ export default class ImageEditor {
   }
 
   transform(offsetX: number, offsetY: number) {
-    const backgroundImage = this.canvas.backgroundImage!;
+    const backgroundImage = this.getBackgroundImage();
     const x = backgroundImage.getX();
     const y = backgroundImage.getY();
     backgroundImage.setXY(new Point(x + offsetX, y + offsetY));
     const objs = this.canvas.getObjects();
     for (const obj of objs) {
+      if (obj === backgroundImage) {
+        continue;
+      }
       obj.left += offsetX;
       obj.top += offsetY;
       obj.setCoords();
@@ -158,28 +176,34 @@ export default class ImageEditor {
   }
 
   transformX(fabricLeft: number) {
-    const x = this.canvas.backgroundImage!.getX()
-    this.canvas.backgroundImage?.setX(x + fabricLeft)
+    const backgroundImage = this.getBackgroundImage();
+    const x = backgroundImage.getX()
+    backgroundImage.setX(x + fabricLeft)
     let objs = this.canvas.getObjects();
     if (objs == null) {
       objs = [];
     }
     for (const obj of objs) {
-      obj.left += fabricLeft;
+      if (obj != backgroundImage) {
+        obj.left += fabricLeft;
+      }
       obj.setCoords();
     }
     this.canvas.renderAll();
   }
 
   transformY(fabricTop: number) {
-    const y = this.canvas.backgroundImage!.getY()
-    this.canvas.backgroundImage?.setY(y + fabricTop)
+    const backgroundImage = this.getBackgroundImage();
+    const y = backgroundImage.getY()
+    backgroundImage.setY(y + fabricTop)
     let objs = this.canvas.getObjects();
     if (objs == null) {
       objs = [];
     }
     for (const obj of objs) {
-      obj.top += fabricTop;
+      if (obj != backgroundImage) {
+        obj.top += fabricTop;
+      }
       obj.setCoords();
     }
     this.canvas.renderAll();
@@ -215,7 +239,6 @@ export default class ImageEditor {
     for (const object of objects) {
       canvas.remove(object);
     }
-    canvas.backgroundImage = undefined;
     canvas.clear();
     const elementManger = this.elementManager;
     let ret;
@@ -228,7 +251,20 @@ export default class ImageEditor {
       canvas.setDimensions({ width, height })
       FabricUtils.setCenterOrigin(img);
       img.setXY(new Point(width / 2, height / 2));
-      canvas.backgroundImage = img;
+      this.backgroundImage = img;
+      FabricUtils.setCornerControlsOnly(img);
+
+      const lastXY = img.getXY();
+      const lastScale = {
+        x: img.scaleX,
+        y: img.scaleY
+      }
+      img.set('lastXY', lastXY);
+      img.set('lastDim', lastScale);
+
+      FabricObjectChangeHelper.listenMove(img, this.history);
+      FabricObjectChangeHelper.listenScale(img, this.history);
+      canvas.add(img);
       canvas.backgroundColor = '#FFF';
       const style = elementManger.getFabricWrapper()!.style;
       style.left = '0px';
@@ -259,7 +295,6 @@ export default class ImageEditor {
     }
   }
 
-
   scale(scale: number) {
     const newScale = this.globalScale + scale;
     if (newScale < ImageEditor.MIN_SCALE || newScale > ImageEditor.MAX_SCALE) {
@@ -267,5 +302,13 @@ export default class ImageEditor {
     }
     this.globalScale = newScale;
     return true;
+  }
+
+  setBackgroundImage(image: FabricImage) {
+    this.backgroundImage = image;
+  }
+
+  getBackgroundImage() {
+    return this.backgroundImage;
   }
 }
