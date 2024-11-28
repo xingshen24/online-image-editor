@@ -15,10 +15,10 @@ export class ImageEditorShortcutManager {
   handleKeyboardEvent(event: KeyboardEvent) {
     const noControlKey = !event.ctrlKey && !event.shiftKey && !event.altKey
     const ctrlOnly = event.ctrlKey && !event.shiftKey && !event.altKey;
-    if (event.key === 'Delete' && noControlKey) {
+    if (event.key.toLowerCase() === 'delete' && noControlKey) {
       this.imageEditor.removeActiveObjects();
     } else if (ctrlOnly) {
-      switch (event.key) {
+      switch (event.key.toLowerCase()) {
         case 'z':
           this.imageEditor!.getHistory().undo();
           break;

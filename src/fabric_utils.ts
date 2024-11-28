@@ -1,5 +1,4 @@
-import { FabricObject, TransformActionHandler, controlsUtils } from "fabric";
-import ImageEditor from "./image_editor";
+import { FabricObject } from "fabric";
 
 
 export class FabricUtils {
@@ -9,29 +8,17 @@ export class FabricUtils {
     fo.originY = 'center'
   }
 
-  public static setCornerControlsOnly(fo: FabricObject, ie: ImageEditor) {
-    const actionToWrap: TransformActionHandler = (_eventData, transform) => {
-      const currTransform = ie.getTransformer();
-      if (currTransform === null) {
-        return false;
-      }
-      if (currTransform.target !== fo) {
-        return false;
-      }
-      return true;
-    };
-
-    const scalingEqually = controlsUtils.wrapWithFireEvent(
-      'scaling',
-      controlsUtils.wrapWithFixedAnchor(actionToWrap),
-    );
-
-    fo.controls.br.actionHandler = scalingEqually;
+  public static setCornerControlsOnly(fo: FabricObject) {
     fo.setControlsVisibility({
+      mt: false, // 中上
+      mb: false, // 中下
+      ml: false, // 中左
+      mr: false, // 中右
+      mtr: false, // 旋转
       tl: true,  // 左上角
       tr: true,  // 右上角
       bl: true,  // 左下角
-      br: true,  // 右下角
+      br: true   // 右下角
     });
   }
 }

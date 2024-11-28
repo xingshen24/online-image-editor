@@ -3,6 +3,7 @@ import OperationHistory from "../history";
 
 export default class FabricObjectChangeHelper {
 
+  // 这边代码应该要考虑干掉了，写的实在太挫了，当时不得已写的
   static listenMove(obj: FabricObject, history: OperationHistory) {
     obj.on('moving', () => {
       if (!obj.get('movingFlag')) {

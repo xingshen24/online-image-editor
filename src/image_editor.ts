@@ -77,10 +77,10 @@ export default class ImageEditor {
       y: image.scaleY
     }
     image.set('lastXY', lastXY);
-    image.set('lastDim', lastScale);
+    image.set('lastScale', lastScale);
 
     FabricObjectChangeHelper.listenMove(image, this.history);
-    FabricObjectChangeHelper.listenScale(image, this.history);
+    FabricObjectChangeHelper.listenRatioScale(image, this.history);
 
     this.rectOperator = new RectangleOperator(this);
     this.ellipseOperator = new EllipseOperator(this);
@@ -104,7 +104,7 @@ export default class ImageEditor {
     this.elementManager.init(this);
     this.elementManager.bindEvents();
     this.screenshoter.init(this, this.elementManager);
-    FabricUtils.setCornerControlsOnly(this.backgroundImage!, this);
+    FabricUtils.setCornerControlsOnly(this.backgroundImage!);
   }
 
   bindOperators() {
@@ -137,6 +137,16 @@ export default class ImageEditor {
 
     this.canvas.on('mouse:up', () => {
       if (!!this.currTransform) {
+        const transform = this.currTransform;
+        const action = transform.action;
+        const target = transform.target;
+        if (action === 'move') {
+
+        } else if (action === 'scale') {
+
+        } else if (action === 'rotate') {
+
+        }
         this.currTransform = null;
       }
     })
@@ -268,13 +278,14 @@ export default class ImageEditor {
       ret = img;
       img.evented = false;
       img.selectable = false;
+      img.lockScalingFlip = true;
       const width = img.width;
       const height = img.height;
       canvas.setDimensions({ width, height })
       FabricUtils.setCenterOrigin(img);
       img.setXY(new Point(width / 2, height / 2));
       this.backgroundImage = img;
-      FabricUtils.setCornerControlsOnly(img, this);
+      FabricUtils.setCornerControlsOnly(img);
 
       const lastXY = img.getXY();
       const lastScale = {
@@ -282,10 +293,10 @@ export default class ImageEditor {
         y: img.scaleY
       }
       img.set('lastXY', lastXY);
-      img.set('lastDim', lastScale);
+      img.set('lastScale', lastScale);
 
       FabricObjectChangeHelper.listenMove(img, this.history);
-      FabricObjectChangeHelper.listenScale(img, this.history);
+      FabricObjectChangeHelper.listenRatioScale(img, this.history);
       canvas.add(img);
       canvas.backgroundColor = '#FFF';
       const style = elementManger.getFabricWrapper()!.style;

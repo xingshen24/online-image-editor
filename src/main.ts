@@ -231,6 +231,7 @@ export class ImageEditorHelper {
       canvas.backgroundColor = '#FFF';
       img.evented = false;
       img.selectable = false;
+      img.lockScalingFlip = true;
       canvas.add(img)
       canvas.sendObjectToBack(img);
       // 设置完需要渲染一下
