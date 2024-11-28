@@ -68,7 +68,8 @@ export default class RectangleOperator implements ImageEditorOperator, OperatorP
       stroke: this.color,
       strokeWidth: this.strokeWidth,
       lockScalingFlip: true,
-      perPixelTargetFind: true
+      perPixelTargetFind: true,
+      objectCaching: false
     })
     canvas.add(this.current);
   }
@@ -85,6 +86,7 @@ export default class RectangleOperator implements ImageEditorOperator, OperatorP
     this.current!.set('width', Math.round(width));
     this.current!.set('height', Math.round(height));
     this.current!.setXY(new Point(x, y))
+    this.current!.setCoords();
     this.canvas.requestRenderAll();
   }
 
