@@ -1,7 +1,6 @@
 import { Canvas, IText } from "fabric";
 import ImageEditor from "../image_editor";
 import { DEFAULT_COLOR, ImageEditorOperator, OperatorProps, OperatorType } from "../image_editor_operator";
-import FabricObjectChangeHelper from "./move_helper";
 
 export default class TextOperator implements ImageEditorOperator, OperatorProps {
 
@@ -107,15 +106,6 @@ export default class TextOperator implements ImageEditorOperator, OperatorProps 
     canvas.setActiveObject(text);
     canvas.renderAll();
 
-    const lastXY = text.getXY();
-    const lastScale = {
-      x: text.scaleX,
-      y: text.scaleY
-    }
-    text.set('lastXY', lastXY);
-    text.set('lastScale', lastScale);
-    FabricObjectChangeHelper.listenMove(text, this.imageEditor.getHistory());
-    FabricObjectChangeHelper.listenRatioScale(text, this.imageEditor.getHistory());
     this.imageEditor.getHistory().recordCreateAction(text);
   }
 }

@@ -110,10 +110,39 @@ class MoveAction implements OperationAction {
     this.object.setCoords();
     this.canvas.renderAll();
   }
-
 }
 
-class ScaleAction implements OperationAction {
+class RotateAction implements OperationAction {
+
+  protected canvas: Canvas;
+
+  protected object: FabricObject;
+
+  protected previousAngle: number;
+
+  protected currentAngle: number;
+
+  constructor(canvas: Canvas, object: FabricObject, angle: number) {
+    this.object = object;
+    this.canvas = canvas;
+    this.previousAngle = angle;
+    this.currentAngle = object.angle;
+  }
+
+  undo(): void {
+    this.object.angle = this.previousAngle;
+    this.object.setCoords();
+    this.canvas.renderAll();
+  }
+
+  redo(): void {
+    this.object.angle = this.currentAngle;
+    this.object.setCoords();
+    this.canvas.renderAll();
+  }
+}
+
+class RedrawScaleAction implements OperationAction {
 
   protected canvas: Canvas;
 
@@ -152,6 +181,7 @@ class ScaleAction implements OperationAction {
     this.object.set({ width: this.previousWidth, height: this.previousHeight });
     this.object.setX(this.previousX);
     this.object.setY(this.previousY);
+    this.object.setCoords();
     this.canvas.renderAll();
   }
 
@@ -159,11 +189,64 @@ class ScaleAction implements OperationAction {
     this.object.set({ width: this.currentWidth, height: this.currentHeight });
     this.object.setX(this.currentX);
     this.object.setY(this.currentY);
+    this.object.setCoords();
     this.canvas.renderAll();
   }
 }
 
-class EllipseScaleAction extends ScaleAction {
+class KeepRatioScaleAction implements OperationAction {
+
+  protected canvas: Canvas;
+
+  protected object: FabricObject;
+
+  protected preScaleX: number;
+
+  protected preScaleY: number;
+
+  protected preX: number;
+
+  protected preY: number;
+
+  protected curScaleX: number;
+
+  protected curScaleY: number;
+
+  protected curX: number;
+
+  protected curY: number;
+
+  constructor(canvas: Canvas, object: FabricObject, preScaleX: number, preScaleY: number, preX: number, preY: number) {
+    this.canvas = canvas;
+    this.object = object;
+    this.preScaleX = preScaleX;
+    this.preScaleY = preScaleY;
+    this.preX = preX;
+    this.preY = preY;
+    this.curScaleX = object.scaleX;
+    this.curScaleY = object.scaleY;
+    this.curX = object.getX();
+    this.curY = object.getY();
+  }
+
+  undo(): void {
+    this.object.scaleX = this.preScaleX;
+    this.object.scaleY = this.preScaleY;
+    this.object.setXY(new Point(this.preX, this.preY));
+    this.object.setCoords();
+    this.canvas.renderAll();
+  }
+
+  redo(): void {
+    this.object.scaleX = this.curScaleX;
+    this.object.scaleY = this.curScaleX;
+    this.object.setXY(new Point(this.curX, this.curY));
+    this.object.setCoords();
+    this.canvas.renderAll();
+  }
+}
+
+class EllipseScaleAction extends RedrawScaleAction {
 
   protected previousRX: number;
 
@@ -194,59 +277,6 @@ class EllipseScaleAction extends ScaleAction {
     obj.rx = this.currentRX;
     obj.ry = this.currentRY;
     super.redo();
-  }
-}
-
-
-class RatioScaleAction implements OperationAction {
-
-  protected canvas: Canvas;
-
-  protected object: FabricObject;
-
-  protected previousScaleX: number;
-
-  protected previousScaleY: number;
-
-  protected previousX: number;
-
-  protected previousY: number;
-
-  protected currentScaleX: number;
-
-  protected currentScaleY: number;
-
-  protected currentX: number;
-
-  protected currentY: number;
-
-  constructor(canvas: Canvas, object: FabricObject, previousScaleX: number, previousScaleY: number, previousX: number, previousY: number) {
-    this.canvas = canvas;
-    this.object = object;
-    this.previousScaleX = previousScaleX;
-    this.previousScaleY = previousScaleY;
-    this.previousX = previousX;
-    this.previousY = previousY;
-    this.currentScaleX = object.scaleX;
-    this.currentScaleY = object.scaleY;
-    this.currentX = object.getX();
-    this.currentY = object.getY();
-  }
-
-  undo(): void {
-    this.object.scaleX = this.previousScaleX;
-    this.object.scaleY = this.previousScaleY;
-    this.object.setX(this.previousX);
-    this.object.setY(this.previousY);
-    this.canvas.renderAll();
-  }
-
-  redo(): void {
-    this.object.scaleX = this.currentScaleX;
-    this.object.scaleY = this.currentScaleY;
-    this.object.setX(this.currentX);
-    this.object.setY(this.currentY);
-    this.canvas.renderAll();
   }
 }
 
@@ -382,28 +412,32 @@ export default class OperationHistory {
     this.clearRedoStack();
   }
 
+  recordRotateAction(object: FabricObject, angle: number) {
+    this.undoStack.push(new RotateAction(this.canvas, object, angle));
+    this.clearRedoStack();
+  }
+
   recordMoveAction(object: FabricObject, previousX: number, previousY: number) {
     this.undoStack.push(new MoveAction(this.canvas, object, previousX, previousY));
     this.clearRedoStack();
   }
 
-  // 放缩可能会改变图形的位置
-  recordScaleAction(object: FabricObject, previousWidth: number, previousHeight: number,
+  // 放缩会改变图形的位置，因此还原的时候要注意
+  recordRedrawScaleAction(object: FabricObject, previousWidth: number, previousHeight: number,
     previousX: number, previousY: number) {
-    this.undoStack.push(new ScaleAction(this.canvas, object, previousWidth, previousHeight, previousX, previousY));
+    this.undoStack.push(new RedrawScaleAction(this.canvas, object, previousWidth, previousHeight, previousX, previousY));
+    this.clearRedoStack();
+  }
+
+  // 放缩会改变图形的位置，因此还原的时候要注意
+  recordKeepRatioScaleAction(object: FabricObject, scaleX: number, scaleY: number, x: number, y: number) {
+    this.undoStack.push(new KeepRatioScaleAction(this.canvas, object, scaleX, scaleY, x, y));
     this.clearRedoStack();
   }
 
   recordEllipseScaleAction(object: Ellipse, previousWidth: number, previousHeight: number,
     previousX: number, previousY: number, previousRX: number, previousRY: number) {
     this.undoStack.push(new EllipseScaleAction(this.canvas, object, previousWidth, previousHeight, previousX, previousY, previousRX, previousRY));
-    this.clearRedoStack();
-  }
-
-  recordRatioScaleAction(object: FabricObject, previousScaleX: number, previousScaleY: number,
-    previousX: number, previousY: number) {
-    this.undoStack.push(new RatioScaleAction(this.canvas, object, previousScaleX, previousScaleY,
-      previousX, previousY));
     this.clearRedoStack();
   }
 

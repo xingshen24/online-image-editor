@@ -1,4 +1,4 @@
-import { Canvas, FabricImage, Point, StaticCanvas, Transform } from "fabric";
+import { Canvas, Ellipse, FabricImage, IText, Path, Point, Rect, StaticCanvas, Transform } from "fabric";
 import ElementManager from "./element_manager";
 import { FabricUtils } from "./fabric_utils";
 import OperationHistory from "./history";
@@ -11,7 +11,9 @@ import RectangleOperator from "./operator/rect_operator";
 import TextOperator from "./operator/text_operator";
 import { Screenshoter } from "./screenshoter";
 import { ImageEditorShortcutManager } from "./shortcut_manager";
-import FabricObjectChangeHelper from "./operator/move_helper";
+import Arrow from "./operator/fabric_arrow";
+
+const DEFAULT_STATE = { x: 0, y: 0, width: 0, height: 0, scaleX: 1, scaleY: 1, angle: 0, rx: 0, ry: 0 };
 
 export default class ImageEditor {
 
@@ -27,6 +29,8 @@ export default class ImageEditor {
   private canvas: Canvas;
 
   private currTransform: Transform | null = null;
+
+  private transformStartState = DEFAULT_STATE;
 
   private screenshoter: Screenshoter;
 
@@ -69,18 +73,6 @@ export default class ImageEditor {
     }
     this.backgroundImage = image;
     this.history = new OperationHistory(this);
-
-    // 这段代码考虑移动到后面去
-    const lastXY = image.getXY();
-    const lastScale = {
-      x: image.scaleX,
-      y: image.scaleY
-    }
-    image.set('lastXY', lastXY);
-    image.set('lastScale', lastScale);
-
-    FabricObjectChangeHelper.listenMove(image, this.history);
-    FabricObjectChangeHelper.listenRatioScale(image, this.history);
 
     this.rectOperator = new RectangleOperator(this);
     this.ellipseOperator = new EllipseOperator(this);
@@ -133,6 +125,21 @@ export default class ImageEditor {
 
     this.canvas.on('before:transform', (e) => {
       this.currTransform = e.transform;
+      const target = e.transform.target;
+      this.transformStartState = {
+        x: target.getX(),
+        y: target.getY(),
+        width: target.width,
+        height: target.height,
+        scaleX: target.scaleX,
+        scaleY: target.scaleY,
+        angle: target.angle,
+        rx: 0, ry: 0
+      }
+      if (target instanceof Ellipse) {
+        this.transformStartState.rx = target.getRx();
+        this.transformStartState.ry = target.getRy();
+      }
     });
 
     this.canvas.on('mouse:up', () => {
@@ -140,13 +147,35 @@ export default class ImageEditor {
         const transform = this.currTransform;
         const action = transform.action;
         const target = transform.target;
-        if (action === 'move') {
-
-        } else if (action === 'scale') {
-
+        const beforeState = this.transformStartState;
+        if (action === 'drag') {
+          const { x, y } = beforeState;
+          this.history.recordMoveAction(target, x, y);
+        } else if (action === 'scale' || action === 'scaleX' || action === 'scaleY') {
+          // 框选，椭圆，箭头，都不是等比例缩放
+          // 文字、画笔是等比例缩放，要考虑一下等比例缩放的问题
+          const scaleRatio = target instanceof IText || target instanceof Path || target instanceof FabricImage;
+          const scaleRedraw = target instanceof Arrow || target instanceof Rect || target instanceof Ellipse;
+          const { scaleX, scaleY, x, y, width, height, rx, ry } = beforeState;
+          // 等比例缩放，直接记录
+          if (scaleRatio) {
+            this.history.recordKeepRatioScaleAction(target, scaleX, scaleY, x, y);
+          }
+          // 框选、箭头、椭圆都是重绘，需要特别注意，尤其是椭圆
+          else if (scaleRedraw) {
+            if (!(target instanceof Ellipse)) {
+              this.history.recordRedrawScaleAction(target, width, height, x, y)
+            } else {
+              this.history.recordEllipseScaleAction(target, width, height, x, y, rx, ry)
+            }
+          } else {
+            throw new Error('未知的类型');
+          }
         } else if (action === 'rotate') {
-
+          const { angle } = beforeState;
+          this.history.recordRotateAction(target, angle);
         }
+        this.transformStartState = DEFAULT_STATE;
         this.currTransform = null;
       }
     })
@@ -287,16 +316,6 @@ export default class ImageEditor {
       this.backgroundImage = img;
       FabricUtils.setCornerControlsOnly(img);
 
-      const lastXY = img.getXY();
-      const lastScale = {
-        x: img.scaleX,
-        y: img.scaleY
-      }
-      img.set('lastXY', lastXY);
-      img.set('lastScale', lastScale);
-
-      FabricObjectChangeHelper.listenMove(img, this.history);
-      FabricObjectChangeHelper.listenRatioScale(img, this.history);
       canvas.add(img);
       canvas.backgroundColor = '#FFF';
       const style = elementManger.getFabricWrapper()!.style;
@@ -353,7 +372,11 @@ export default class ImageEditor {
     this.cancelFn();
   }
 
-  getTransformer() {
+  getTransform() {
     return this.currTransform;
+  }
+
+  getTransformState() {
+    return this.transformStartState;
   }
 }

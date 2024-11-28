@@ -1,7 +1,7 @@
 import { Canvas, Ellipse, Point } from "fabric";
+import { FabricUtils } from "../fabric_utils";
 import ImageEditor from "../image_editor";
 import { DEFAULT_COLOR, DEFAULT_STROKE_WIDTH, ImageEditorOperator, OperatorProps, OperatorType } from "../image_editor_operator";
-import FabricObjectChangeHelper from "./move_helper";
 
 export default class EllipseOperator implements ImageEditorOperator, OperatorProps {
 
@@ -102,20 +102,7 @@ export default class EllipseOperator implements ImageEditorOperator, OperatorPro
     if (pointer.x == this.startX || pointer.y == this.startY) {
       this.canvas.remove(this.current!);
     } else {
-      const lastXY = this.current?.getXY();
-      const lastSize = {
-        width: this.current!.width,
-        height: this.current!.height
-      }
-      const lastRXY = {
-        rx: this.current!.rx,
-        ry: this.current!.ry
-      }
-      this.current!.set('lastXY', lastXY);
-      this.current!.set('lastDim', lastSize);
-      this.current!.set('lastRXY', lastRXY);
-      FabricObjectChangeHelper.listenMove(this.current!, this.imageEditor.getHistory());
-      FabricObjectChangeHelper.listenEllipseScale(this.current!, this.imageEditor.getHistory());
+      FabricUtils.setScaleToRedrawEllipse(this.current!, this.imageEditor);
       this.imageEditor.getHistory().recordCreateAction(this.current!);
       this.canvas.setActiveObject(this.current!)
       this.current!.setCoords();

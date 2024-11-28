@@ -1,8 +1,7 @@
-import { BaseBrush, Canvas, PencilBrush, Point, Shadow } from "fabric";
+import { BaseBrush, Canvas, PencilBrush, Shadow } from "fabric";
 import OperationHistory from "../history";
 import ImageEditor from "../image_editor";
 import { DEFAULT_COLOR, DEFAULT_STROKE_WIDTH, OperatorProps, OperatorType } from "../image_editor_operator";
-import FabricObjectChangeHelper from "./move_helper";
 
 export default class DrawOperator implements OperatorProps {
 
@@ -59,16 +58,8 @@ export default class DrawOperator implements OperatorProps {
 
     path.perPixelTargetFind = true;
     path.lockScalingFlip = true;
+
     this.canvas.renderAll();
-    const lastXY = path.getXY();
-    const lastScale = {
-      x: path.scaleX,
-      y: path.scaleY
-    }
-    path.set('lastXY', lastXY);
-    path.set('lastScale', lastScale);
-    FabricObjectChangeHelper.listenMove(path, this.imageEditor.getHistory());
-    FabricObjectChangeHelper.listenRatioScale(path, this.imageEditor.getHistory());
     this.history.recordCreateAction(path);
   }
 

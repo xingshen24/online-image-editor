@@ -1,7 +1,7 @@
 import { Canvas, Point, Rect } from "fabric";
+import { FabricUtils } from "../fabric_utils";
 import ImageEditor from "../image_editor";
 import { DEFAULT_COLOR, DEFAULT_STROKE_WIDTH, ImageEditorOperator, OperatorProps, OperatorType } from "../image_editor_operator";
-import FabricObjectChangeHelper from "./move_helper";
 
 export default class RectangleOperator implements ImageEditorOperator, OperatorProps {
 
@@ -99,15 +99,7 @@ export default class RectangleOperator implements ImageEditorOperator, OperatorP
     if (width <= 0 || height <= 0) {
       this.canvas.remove(this.current!);
     } else {
-      const lastXY = this.current?.getXY();
-      const lastSize = {
-        width: this.current!.width,
-        height: this.current!.height
-      }
-      this.current!.set('lastXY', lastXY);
-      this.current!.set('lastDim', lastSize);
-      FabricObjectChangeHelper.listenMove(this.current!, this.imageEditor.getHistory());
-      FabricObjectChangeHelper.listenScale(this.current!, this.imageEditor.getHistory());
+      FabricUtils.setScaleToRedraw(this.current!, this.imageEditor);
       this.imageEditor.getHistory().recordCreateAction(this.current!);
       this.current!.setCoords();
       this.canvas.setActiveObject(this.current!);
