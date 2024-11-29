@@ -14,11 +14,12 @@ export class ImageEditorHelper {
   static CANVAS_DEFAULT_HEIGHT = 100;
 
   static async createImageEditor(imageUrl: string
+    , assetsPath = '.'
     , confirm = (_imgBase64: string) => { }
     , cancel = () => { }
     , parent: HTMLElement = document.body
     , head: HTMLElement = document.head) {
-    const elements = this.createElement(parent)
+    const elements = this.createElement(parent, assetsPath)
     const eleManager = new ElementManager(elements, parent, head);
     const canvas = await this.initCanvas(elements.canvas, imageUrl);
     const image = canvas.getObjects()[0];
@@ -31,7 +32,7 @@ export class ImageEditorHelper {
     return editor;
   }
 
-  private static createElement(parent: HTMLElement): Record<string, any> {
+  private static createElement(parent: HTMLElement, assetsPath: string): Record<string, any> {
 
     const width = this.CANVAS_DEFAULT_WIDTH, height = this.CANVAS_DEFAULT_HEIGHT;
 
@@ -50,7 +51,7 @@ export class ImageEditorHelper {
     toolbar.style.bottom = '50px';
     toolbar.style.left = '50%';
     toolbar.style.transform = 'translateX(-50%)';
-    const toolbarMenu = this.initToolbar(toolbar);
+    const toolbarMenu = this.initToolbar(toolbar, assetsPath);
 
     // 不考虑滚动条的事，出现滚动条的话，就给点偏差
     // canvasWrapper，包裹画板
@@ -86,7 +87,7 @@ export class ImageEditorHelper {
     parent.appendChild(wrapper);
 
     const screenshotResizer = this.createScreenshotResizers(wrapper);
-    const screenshotToolbar = this.createScreenshotToolbar(wrapper);
+    const screenshotToolbar = this.createScreenshotToolbar(wrapper, assetsPath);
 
     const rets = {
       ...toolbarMenu, canvas, canvasWrapper, ...resizers, toolbar, wrapper, screenshotCanvas, screenshotResizer, screenshotToolbar
@@ -94,7 +95,7 @@ export class ImageEditorHelper {
     return rets;
   }
 
-  static createScreenshotToolbar(parent: HTMLElement) {
+  static createScreenshotToolbar(parent: HTMLElement, assetsPath: string) {
     const toolbar = document.createElement("div");
     const style = toolbar.style;
     style.position = 'absolute';
@@ -105,8 +106,8 @@ export class ImageEditorHelper {
     style.paddingTop = '4px';
     style.paddingBottom = '4px';
     style.display = 'none';
-    const cancelScreenshot = this.appendMenu(toolbar, './assets/cancel.svg', '取消', 8, 0);
-    const confirmScreenshot = this.appendMenu(toolbar, './assets/confirm.svg', '确认', 0, 0);
+    const cancelScreenshot = this.appendMenu(toolbar, assetsPath + '/assets/cancel.svg', '取消', 8, 0);
+    const confirmScreenshot = this.appendMenu(toolbar, assetsPath + '/assets/confirm.svg', '确认', 0, 0);
     parent.appendChild(toolbar);
     return {
       toolbar,
@@ -153,7 +154,7 @@ export class ImageEditorHelper {
 
   // topbar和bottombar都要做固定width，居中
   // 不要考虑其它的，尾部也是一样的
-  private static initToolbar(toolbar: HTMLElement): Record<string, HTMLElement> {
+  private static initToolbar(toolbar: HTMLElement, assetsPath: string): Record<string, HTMLElement> {
 
     toolbar.style.padding = "8px";
     toolbar.style.backgroundColor = "#e5e6e7";
@@ -163,32 +164,32 @@ export class ImageEditorHelper {
 
     const ret = {} as any;
 
-    ret.rectangleMenu = this.appendMenu(toolbar, './assets/rect.svg', '矩形');
-    ret.ellipseMenu = this.appendMenu(toolbar, './assets/circle.svg', '圆形');
-    ret.arrowMenu = this.appendMenu(toolbar, './assets/arrow.svg', '箭头');
-    ret.drawMenu = this.appendMenu(toolbar, './assets/draw.svg', '绘图');
-    ret.textMenu = this.appendMenu(toolbar, './assets/text.svg', '文本');
-    ret.mosaicMenu = this.appendMenu(toolbar, './assets/mosaic.svg', '马赛克');
-    ret.editPictureMenu = this.appendMenu(toolbar, './assets/edit.svg', '编辑底图');
+    ret.rectangleMenu = this.appendMenu(toolbar, assetsPath + '/assets/rect.svg', '矩形');
+    ret.ellipseMenu = this.appendMenu(toolbar, assetsPath + '/assets/circle.svg', '圆形');
+    ret.arrowMenu = this.appendMenu(toolbar, assetsPath + '/assets/arrow.svg', '箭头');
+    ret.drawMenu = this.appendMenu(toolbar, assetsPath + '/assets/draw.svg', '绘图');
+    ret.textMenu = this.appendMenu(toolbar, assetsPath + '/assets/text.svg', '文本');
+    ret.mosaicMenu = this.appendMenu(toolbar, assetsPath + '/assets/mosaic.svg', '马赛克');
+    ret.editPictureMenu = this.appendMenu(toolbar, assetsPath + '/assets/edit.svg', '编辑底图');
 
-    ret.scaleUpMenu = this.appendMenu(toolbar, './assets/scaleUp.svg', '放大所有元素', 42);
-    ret.scaleDownMenu = this.appendMenu(toolbar, './assets/scaleDown.svg', '缩小所有元素');
+    ret.scaleUpMenu = this.appendMenu(toolbar, assetsPath + '/assets/scaleUp.svg', '放大所有元素', 42);
+    ret.scaleDownMenu = this.appendMenu(toolbar, assetsPath + '/assets/scaleDown.svg', '缩小所有元素');
 
-    ret.shrinkMenu = this.appendMenu(toolbar, './assets/shrink.svg', '缩减绘制区域',);
-    ret.extendMenu = this.appendMenu(toolbar, './assets/extend.svg', '扩展绘制区域');
-    ret.flipXMenu = this.appendMenu(toolbar, './assets/flipX.svg', '水平翻转');
-    ret.flipYMenu = this.appendMenu(toolbar, './assets/flipY.svg', '垂直翻转');
+    ret.shrinkMenu = this.appendMenu(toolbar, assetsPath + '/assets/shrink.svg', '缩减绘制区域',);
+    ret.extendMenu = this.appendMenu(toolbar, assetsPath + '/assets/extend.svg', '扩展绘制区域');
+    ret.flipXMenu = this.appendMenu(toolbar, assetsPath + '/assets/flipX.svg', '水平翻转');
+    ret.flipYMenu = this.appendMenu(toolbar, assetsPath + '/assets/flipY.svg', '垂直翻转');
 
-    ret.rotateCounterClockwiseMenu = this.appendMenu(toolbar, './assets/rotate.svg', '逆时针旋转');
+    ret.rotateCounterClockwiseMenu = this.appendMenu(toolbar, assetsPath + '/assets/rotate.svg', '逆时针旋转');
     ret.rotateCounterClockwiseMenu.style.transform = 'rotateY(180deg)';
-    ret.rotateClockwiseMenu = this.appendMenu(toolbar, './assets/rotate.svg', '顺时针旋转');
-    ret.cropMenu = this.appendMenu(toolbar, './assets/crop.svg', '裁剪');
+    ret.rotateClockwiseMenu = this.appendMenu(toolbar, assetsPath + '/assets/rotate.svg', '顺时针旋转');
+    ret.cropMenu = this.appendMenu(toolbar, assetsPath + '/assets/crop.svg', '裁剪');
 
-    ret.undoMenu = this.appendMenu(toolbar, './assets/undo.svg', '撤销', 38);
-    ret.redoMenu = this.appendMenu(toolbar, './assets/redo.svg', '恢复');
-    ret.resetMenu = this.appendMenu(toolbar, './assets/reset.svg', '重置');
-    ret.cancelMenu = this.appendMenu(toolbar, './assets/cancel.svg', '放弃本次编辑', 36);
-    ret.confirmMenu = this.appendMenu(toolbar, './assets/confirm.svg', '保存编辑结果', 0, 0);
+    ret.undoMenu = this.appendMenu(toolbar, assetsPath + '/assets/undo.svg', '撤销', 38);
+    ret.redoMenu = this.appendMenu(toolbar, assetsPath + '/assets/redo.svg', '恢复');
+    ret.resetMenu = this.appendMenu(toolbar, assetsPath + '/assets/reset.svg', '重置');
+    ret.cancelMenu = this.appendMenu(toolbar, assetsPath + '/assets/cancel.svg', '放弃本次编辑', 36);
+    ret.confirmMenu = this.appendMenu(toolbar, assetsPath + '/assets/confirm.svg', '保存编辑结果', 0, 0);
     return ret;
   }
 
@@ -227,7 +228,7 @@ export class ImageEditorHelper {
       preserveObjectStacking: true
     })
 
-    await FabricImage.fromURL(imageUrl).then(img => {
+    await FabricImage.fromURL(imageUrl, { crossOrigin: 'anonymous' }).then(img => {
       canvas.backgroundColor = '#FFF';
       img.evented = false;
       img.selectable = false;
@@ -334,4 +335,4 @@ export class ImageEditorHelper {
   }
 }
 
-ImageEditorHelper.currentImageEditor = await ImageEditorHelper.createImageEditor('./assets/basic.jpg');
+// ImageEditorHelper.currentImageEditor = await ImageEditorHelper.createImageEditor('./assets/basic.jpg');

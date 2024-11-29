@@ -303,7 +303,7 @@ export default class ImageEditor {
     const elementManger = this.elementManager;
     let ret;
 
-    await FabricImage.fromURL(imageDataUrl).then(img => {
+    await FabricImage.fromURL(imageDataUrl, { crossOrigin: 'anonymous' }).then(img => {
       ret = img;
       img.evented = false;
       img.selectable = false;
