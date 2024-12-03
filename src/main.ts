@@ -336,4 +336,8 @@ export class ImageEditorHelper {
   }
 }
 
-ImageEditorHelper.currentImageEditor = await ImageEditorHelper.createImageEditor('./assets/basic.jpg');
+ImageEditorHelper.currentImageEditor = await ImageEditorHelper.createImageEditor('./assets/basic.jpg', '.', (url: string) => {
+  const img = document.createElement("img");
+  img.src = url;
+  document.body.append(img)
+});

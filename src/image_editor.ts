@@ -288,11 +288,12 @@ export default class ImageEditor {
 
     const dpr = devicePixelRatio || 1;
     const image = tempCanvas.toDataURL({
-      format: 'png',
+      format: 'jpeg',
       left: start.x * dpr,
       top: start.y * dpr,
       width: width * dpr,
       height: height * dpr,
+      quality: 0.92,
       multiplier: 1
     });
 
@@ -370,7 +371,7 @@ export default class ImageEditor {
     return this.backgroundImage;
   }
 
-  getBackgroundImageDimension(){
+  getBackgroundImageDimension() {
     return this.backgroundImageDimension;
   }
 

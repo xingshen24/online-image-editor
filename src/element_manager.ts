@@ -522,6 +522,9 @@ export default class ElementManager {
     this.resetMenu.onclick = () => { this.resetImageEditor(); }
 
     this.confirmMenu.onclick = () => {
+      const canvas = imageEditor.getCanvas();
+      canvas.discardActiveObject();
+      canvas.renderAll();
       imageEditor.confirm(this.downloadAreaImage());
       this.destory();
     }
