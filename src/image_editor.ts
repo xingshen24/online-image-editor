@@ -26,6 +26,8 @@ export default class ImageEditor {
 
   protected backgroundImage: FabricImage;
 
+  protected backgroundImageDimension: { width: number, height: number };
+
   private canvas: Canvas;
 
   private currTransform: Transform | null = null;
@@ -72,6 +74,10 @@ export default class ImageEditor {
       throw new Error("unable to load background image");
     }
     this.backgroundImage = image;
+    this.backgroundImageDimension = {
+      width: image.width,
+      height: image.height
+    }
     this.history = new OperationHistory(this);
 
     this.rectOperator = new RectangleOperator(this);
@@ -314,6 +320,9 @@ export default class ImageEditor {
       FabricUtils.setCenterOrigin(img);
       img.setXY(new Point(width / 2, height / 2));
       this.backgroundImage = img;
+      this.backgroundImageDimension = {
+        width, height
+      }
       FabricUtils.setCornerControlsOnly(img);
 
       canvas.add(img);
@@ -337,6 +346,7 @@ export default class ImageEditor {
 
   destory() {
     this.shortcutManager.destroy();
+    this.canvas.destroy();
   }
 
   removeActiveObjects() {
@@ -356,12 +366,12 @@ export default class ImageEditor {
     return true;
   }
 
-  setBackgroundImage(image: FabricImage) {
-    this.backgroundImage = image;
-  }
-
   getBackgroundImage() {
     return this.backgroundImage;
+  }
+
+  getBackgroundImageDimension(){
+    return this.backgroundImageDimension;
   }
 
   confirm(dataUrl: string) {
@@ -378,5 +388,9 @@ export default class ImageEditor {
 
   getTransformState() {
     return this.transformStartState;
+  }
+
+  moveCanvasToCenter() {
+    this.elementManager.moveCanvasToCenter();
   }
 }

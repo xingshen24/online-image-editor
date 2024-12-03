@@ -29,6 +29,7 @@ export class ImageEditorHelper {
     this.resizeCanvas(canvas, eleManager, image.width, image.height);
     const editor = new ImageEditor(canvas, eleManager, confirm, cancel);
     editor.init();
+    ImageEditorHelper.currentImageEditor = editor;
     return editor;
   }
 
@@ -335,4 +336,4 @@ export class ImageEditorHelper {
   }
 }
 
-// ImageEditorHelper.currentImageEditor = await ImageEditorHelper.createImageEditor('./assets/basic.jpg');
+ImageEditorHelper.currentImageEditor = await ImageEditorHelper.createImageEditor('./assets/basic.jpg');

@@ -1509,14 +1509,21 @@ export default class ElementManager {
   resetImageEditor() {
     const canvas = this.imageEditor!.getCanvas()
     const image = this.imageEditor!.getBackgroundImage();
-    const width = image.width;
-    const height = image.height;
+    const dims = this.imageEditor!.getBackgroundImageDimension();
+    const width = dims.width;
+    const height = dims.height;
     this.imageEditor!.setCanvasDims(width, height);
     image.setXY(new Point(width / 2, height / 2));
     image.angle = 0;
+    image.scaleX = 1;
+    image.scaleY = 1;
+    image.width = width;
+    image.height = height;
     const objects = canvas.getObjects()
     for (const o of objects) {
-      canvas.remove(o);
+      if (o != image) {
+        canvas.remove(o);
+      }
     }
     this.fabricWrapperEl!.style.top = '0';
     this.fabricWrapperEl!.style.left = '0';
@@ -1541,5 +1548,9 @@ export default class ElementManager {
   destory() {
     document.removeEventListener('mousemove', this.resizeMoveFn);
     document.removeEventListener('mouseup', this.resizeFinishFn);
+    this.imageEditor!.destory();
+    this.parent.removeChild(this.wrapper);
+    this.parent.removeChild(this.toolbar);
+    this.parent.removeChild(this.optionBar);
   }
 }
