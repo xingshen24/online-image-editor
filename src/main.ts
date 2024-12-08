@@ -30,6 +30,9 @@ export class ImageEditorHelper {
     const editor = new ImageEditor(canvas, eleManager, confirm, cancel);
     editor.init();
     ImageEditorHelper.currentImageEditor = editor;
+    window.addEventListener('resize', ()=>{
+      editor.moveCanvasToCenter();
+    });
     return editor;
   }
 
@@ -90,8 +93,30 @@ export class ImageEditorHelper {
     const screenshotResizer = this.createScreenshotResizers(wrapper);
     const screenshotToolbar = this.createScreenshotToolbar(wrapper, assetsPath);
 
+    const confirmDialogWrapper = document.createElement("div");
+    const confirmDialog = document.createElement("div");
+    const confirmDialogMessage = document.createElement("div");
+    const confirmButtonConfirm = document.createElement("button");
+    const confirmButtonCancel = document.createElement("button");
+
+    confirmButtonConfirm.innerText = '确认';
+    confirmButtonCancel.innerText = '取消';
+
+    confirmDialogWrapper.appendChild(confirmDialog);
+    confirmDialog.appendChild(confirmDialogMessage);
+    confirmDialog.appendChild(confirmButtonCancel);
+    confirmDialog.appendChild(confirmButtonConfirm);
+    canvasWrapper.append(confirmDialogWrapper);
+
+    confirmDialogWrapper.classList.add('online-image-editor-confirm-dialog-wrapper');
+    confirmDialog.classList.add('online-image-editor-confirm-dialog');
+    confirmDialogMessage.classList.add('online-image-editor-confirm-dialog-message');
+    confirmButtonConfirm.classList.add('online-image-editor-confirm-btn', 'online-image-editor-confirm-btn-confirm');
+    confirmButtonCancel.classList.add('online-image-editor-confirm-btn', 'online-image-editor-confirm-btn-cancel')
+
     const rets = {
-      ...toolbarMenu, canvas, canvasWrapper, ...resizers, toolbar, wrapper, screenshotCanvas, screenshotResizer, screenshotToolbar
+      ...toolbarMenu, canvas, canvasWrapper, ...resizers, toolbar, wrapper, screenshotCanvas, screenshotResizer, screenshotToolbar,
+      confirmDialogWrapper, confirmDialog, confirmDialogMessage, confirmButtonConfirm, confirmButtonCancel
     } as any;
     return rets;
   }
@@ -281,8 +306,6 @@ export class ImageEditorHelper {
 
     manager.fixComponentsPosition();
     wrapper.style.visibility = 'visible';
-
-    manager.setInitLeftTop(canvasWrapper.style.left, canvasWrapper.style.top);
   }
 
   private static createCanvasResizer(wrapper: HTMLElement) {

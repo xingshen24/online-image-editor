@@ -160,8 +160,13 @@ export default class ElementManager {
   private eleColorMap = new Map();
   private colorEleMap = new Map();
 
-  private initWrapperLeft: string = '';
-  private initWrapperTop: string = '';
+  private confirmDialogWrapper: HTMLDivElement;
+
+  private confirmDialogMessage: HTMLDivElement;
+
+  private confirmButtonConfirm: HTMLButtonElement;
+
+  private confirmButtonCancel: HTMLButtonElement;
 
   constructor(options: any, parent: HTMLElement, head: HTMLElement) {
 
@@ -186,6 +191,11 @@ export default class ElementManager {
     this.southEastResizer = options.southEastResizer;
     this.eastResizer = options.eastResizer;
     this.northEastResizer = options.northEastResizer;
+
+    this.confirmDialogWrapper = options.confirmDialogWrapper;
+    this.confirmDialogMessage = options.confirmDialogMessage;
+    this.confirmButtonConfirm = options.confirmButtonConfirm;
+    this.confirmButtonCancel = options.confirmButtonCancel;
 
     this.fixResizerPosition();
 
@@ -262,29 +272,15 @@ export default class ElementManager {
     this.fabricWrapperEl = imageEditor.getCanvas().wrapperEl;
     this.initResizers();
     this.fixToolbarPosition();
-    this.appendHoverCSS();
+    this.appendGlobalCSS();
   }
 
-  setInitLeftTop(styledLeft: string, styledTop: string) {
-    this.initWrapperLeft = styledLeft;
-    this.initWrapperTop = styledTop;
-  }
-
-
-  getInitLeftTop() {
-    return {
-      left: this.initWrapperLeft,
-      top: this.initWrapperTop
-    }
-  }
-
-
-  appendHoverCSS() {
+  appendGlobalCSS() {
     if (ElementManager.HAS_CURSOR_CSS_ADDED) {
       return;
     }
     const style = document.createElement('style');
-    const css = `
+    const resizerCss = `
       .north-cursor-resize:hover, .south-cursor-resize:hover{
         cursor: ns-resize;
       }
@@ -301,9 +297,6 @@ export default class ElementManager {
         cursor: nwse-resize;
       }
     `
-    style.appendChild(document.createTextNode(css));
-    this.head.appendChild(style);
-    ElementManager.HAS_CURSOR_CSS_ADDED = true;
 
     this.northResizer.classList.add('north-cursor-resize');
     this.northWestResizer.classList.add('north-west-cursor-resize');
@@ -322,6 +315,74 @@ export default class ElementManager {
     this.screenshotResizer.southEast.classList.add('south-east-cursor-resize');
     this.screenshotResizer.east.classList.add('east-cursor-resize');
     this.screenshotResizer.northEast.classList.add('north-east-cursor-resize');
+
+    const confirmDialogCss = `
+    .online-image-editor-confirm-dialog-wrapper {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 100;
+    }
+
+    .online-image-editor-confirm-dialog {
+      background: white;
+      border-radius: 2px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      text-align: center;
+      min-width: 300px;
+      padding-bottom: 20px;
+    }
+
+    .online-image-editor-confirm-dialog-message {
+      padding-top: 25px;
+      padding-bottom: 14px;
+      font-size: 18px;
+      color: #606266;
+    }
+
+    .online-image-editor-confirm-btn {
+      font-size: 16px;
+      cursor: pointer;
+      border: none;
+      border-radius: 5px;
+      background-color: #007BFF;
+      color: white;
+      transition: background-color 0.3s ease;
+      border-radius: 4px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    .online-image-editor-confirm-btn.online-image-editor-confirm-btn-cancel {
+      background-color: white;
+      color: #606266;
+      border: 1px solid #dcdfe6;
+      padding: 4px 15px 4px 15px;
+      margin-right: 6px;
+    }
+
+    .online-image-editor-confirm-btn.online-image-editor-confirm-btn-confirm {
+      background-color: #409eff;
+      color: white;
+      border-color: #409eff;
+      padding: 4px 15px 4px 15px;
+      margin-left: 6px;
+    }
+
+    .online-image-editor-confirm-btn:hover {
+      opacity: 0.8;
+    }
+    `
+
+    style.appendChild(document.createTextNode(resizerCss + confirmDialogCss));
+    this.head.appendChild(style);
+    ElementManager.HAS_CURSOR_CSS_ADDED = true;
   }
 
   createOperatorOptionBar() {
@@ -519,7 +580,9 @@ export default class ElementManager {
     this.undoMenu.onclick = () => { imageEditor.getHistory().undo(); }
     this.redoMenu.onclick = () => { imageEditor.getHistory().redo(); }
 
-    this.resetMenu.onclick = () => { this.resetImageEditor(); }
+    this.resetMenu.onclick = () => {
+      this.confirmAction('请问您确定要重置图片吗？', () => this.resetImageEditor());
+    }
 
     this.confirmMenu.onclick = () => {
       const canvas = imageEditor.getCanvas();
@@ -530,8 +593,10 @@ export default class ElementManager {
     }
 
     this.cancelMenu.onclick = () => {
-      imageEditor.cancel();
-      this.destory();
+      this.confirmAction('请问您确定要放弃本次编辑吗？', () => {
+        imageEditor.cancel();
+        this.destory();
+      });
     }
   }
 
@@ -1511,8 +1576,9 @@ export default class ElementManager {
 
   resetImageEditor() {
     const canvas = this.imageEditor!.getCanvas()
-    const image = this.imageEditor!.getBackgroundImage();
-    const dims = this.imageEditor!.getBackgroundImageDimension();
+    const image = this.imageEditor!.getInitialBackgroundImage();
+
+    const dims = this.imageEditor!.getInitialBackgroundImageDimension();
     const width = dims.width;
     const height = dims.height;
     this.imageEditor!.setCanvasDims(width, height);
@@ -1522,20 +1588,43 @@ export default class ElementManager {
     image.scaleY = 1;
     image.width = width;
     image.height = height;
+    image.flipX = false;
+    image.flipY = false;
     const objects = canvas.getObjects()
+    canvas.add(image);
+    image.setCoords();
     for (const o of objects) {
       if (o != image) {
         canvas.remove(o);
       }
     }
+    canvas.renderAll();
     this.fabricWrapperEl!.style.top = '0';
     this.fabricWrapperEl!.style.left = '0';
     this.canvasWrapper.style.width = canvas.width + 'px';
     this.canvasWrapper.style.height = canvas.height + 'px';
-    this.canvasWrapper.style.left = this.initWrapperLeft;
-    this.canvasWrapper.style.top = this.initWrapperTop;
+
+    // top和left都要好好计算一下
+    const rect = this.wrapper.getBoundingClientRect();
+    const wrapperWidth = rect.width;
+    const wrapperHeight = rect.height;
+
+    let leftOffset = (wrapperWidth - width) / 2;
+    if (leftOffset <= 20) {
+      leftOffset = 20;
+    }
+    let topOffset = (wrapperHeight - height) / 2;
+    if (topOffset <= 20) {
+      topOffset = 20;
+    }
+
+    this.canvasWrapper.style.left = leftOffset + 'px';
+    this.canvasWrapper.style.top = topOffset + 'px';
+
     this.fixComponentsPosition();
-    this.imageEditor!.getHistory().clearRedoStack();
+    this.imageEditor!.resetGlobalScale();
+    const history = this.imageEditor!.getHistory();
+    history.clearStack();
   }
 
   downloadAreaImage() {
@@ -1546,6 +1635,19 @@ export default class ElementManager {
     const start = new Point(left, top);
     const end = new Point(left + width, top + height);
     return this.imageEditor!.getAreaImageInfo(start, end);
+  }
+
+  confirmAction(message: string, confirm = () => { }, cancel = () => { }) {
+    this.confirmDialogWrapper.style.display = 'flex';
+    this.confirmDialogMessage.innerText = message;
+    this.confirmButtonConfirm.onclick = () => {
+      confirm();
+      this.confirmDialogWrapper.style.display = 'none';
+    }
+    this.confirmButtonCancel.onclick = () => {
+      cancel();
+      this.confirmDialogWrapper.style.display = 'none';
+    }
   }
 
   destory() {

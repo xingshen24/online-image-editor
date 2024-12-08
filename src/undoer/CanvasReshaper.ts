@@ -80,9 +80,8 @@ export class CanvasDimsRecord {
     this.fabricWrapperEl.style.left = this.fwLeft;
 
     this.canvas.setDimensions({ width: this.canvasWidth, height: this.canvasHeight });
-    if (this.offsetX != 0 || this.offsetY != 0) {
-      this.imageEditor && this.imageEditor.transform(this.offsetX, this.offsetY);
-    }
+
+    this.imageEditor && this.imageEditor.transform(this.offsetX, this.offsetY);
   }
 }
 

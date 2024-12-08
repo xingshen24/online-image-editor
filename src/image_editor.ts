@@ -18,7 +18,7 @@ const DEFAULT_STATE = { x: 0, y: 0, width: 0, height: 0, scaleX: 1, scaleY: 1, a
 export default class ImageEditor {
 
   // 控制图片编辑器的整体大小
-  private globalScale = 1;
+  protected globalScale = 1;
 
   public static MIN_SCALE = 0.2;
 
@@ -27,6 +27,10 @@ export default class ImageEditor {
   protected backgroundImage: FabricImage;
 
   protected backgroundImageDimension: { width: number, height: number };
+
+  protected initialBackgroundImage: FabricImage;
+
+  protected initialBackgroundImageDimension: { width: number, height: number };
 
   private canvas: Canvas;
 
@@ -75,6 +79,11 @@ export default class ImageEditor {
     }
     this.backgroundImage = image;
     this.backgroundImageDimension = {
+      width: image.width,
+      height: image.height
+    }
+    this.initialBackgroundImage = image;
+    this.initialBackgroundImageDimension = {
       width: image.width,
       height: image.height
     }
@@ -226,17 +235,21 @@ export default class ImageEditor {
 
   transform(offsetX: number, offsetY: number) {
     const backgroundImage = this.getBackgroundImage();
+    console.log(backgroundImage)
     const x = backgroundImage.getX();
     const y = backgroundImage.getY();
     backgroundImage.setXY(new Point(x + offsetX, y + offsetY));
+    backgroundImage.setCoords();
     const objs = this.canvas.getObjects();
-    for (const obj of objs) {
-      if (obj === backgroundImage) {
-        continue;
+    if (offsetX != 0 || offsetY != 0) {
+      for (const obj of objs) {
+        if (obj === backgroundImage) {
+          continue;
+        }
+        obj.left += offsetX;
+        obj.top += offsetY;
+        obj.setCoords();
       }
-      obj.left += offsetX;
-      obj.top += offsetY;
-      obj.setCoords();
     }
     this.canvas.renderAll();
   }
@@ -371,8 +384,16 @@ export default class ImageEditor {
     return this.backgroundImage;
   }
 
+  getInitialBackgroundImage() {
+    return this.initialBackgroundImage;
+  }
+
   getBackgroundImageDimension() {
     return this.backgroundImageDimension;
+  }
+
+  getInitialBackgroundImageDimension() {
+    return this.initialBackgroundImageDimension;
   }
 
   confirm(dataUrl: string) {
@@ -393,5 +414,9 @@ export default class ImageEditor {
 
   moveCanvasToCenter() {
     this.elementManager.moveCanvasToCenter();
+  }
+
+  resetGlobalScale() {
+    this.globalScale = 1;
   }
 }
