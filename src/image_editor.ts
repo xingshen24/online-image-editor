@@ -384,6 +384,10 @@ export default class ImageEditor {
     return this.backgroundImage;
   }
 
+  setBackgroundImage(image: FabricImage) {
+    this.backgroundImage = image;
+  }
+
   getInitialBackgroundImage() {
     return this.initialBackgroundImage;
   }

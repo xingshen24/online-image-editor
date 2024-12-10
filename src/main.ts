@@ -30,9 +30,9 @@ export class ImageEditorHelper {
     const editor = new ImageEditor(canvas, eleManager, confirm, cancel);
     editor.init();
     ImageEditorHelper.currentImageEditor = editor;
-    window.addEventListener('resize', ()=>{
-      editor.moveCanvasToCenter();
-    });
+    // window.addEventListener('resize', ()=>{
+    //   editor.moveCanvasToCenter();
+    // });
     return editor;
   }
 
@@ -359,8 +359,8 @@ export class ImageEditorHelper {
   }
 }
 
-ImageEditorHelper.currentImageEditor = await ImageEditorHelper.createImageEditor('./assets/basic.jpg', '.', (url: string) => {
-  const img = document.createElement("img");
-  img.src = url;
-  document.body.append(img)
-});
+// ImageEditorHelper.currentImageEditor = await ImageEditorHelper.createImageEditor('./assets/basic.jpg', '.', (url: string) => {
+//   const img = document.createElement("img");
+//   img.src = url;
+//   document.body.append(img)
+// });

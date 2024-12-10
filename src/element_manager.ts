@@ -1324,6 +1324,7 @@ export default class ElementManager {
       const newAngle = (angle + 90) % 360;
       obj.set('angle', newAngle);
       const point = obj.getCenterPoint();
+      console.log(point);
       const newPoint = new Point(canvasHeight - point.y, point.x);
       obj.setXY(newPoint, 'center', 'center');
     }
@@ -1576,6 +1577,7 @@ export default class ElementManager {
 
   resetImageEditor() {
     const canvas = this.imageEditor!.getCanvas()
+    const currImage = this.imageEditor!.getBackgroundImage();
     const image = this.imageEditor!.getInitialBackgroundImage();
 
     const dims = this.imageEditor!.getInitialBackgroundImageDimension();
@@ -1591,7 +1593,10 @@ export default class ElementManager {
     image.flipX = false;
     image.flipY = false;
     const objects = canvas.getObjects()
+
+    // 加上新背景图，移除旧背景图
     canvas.add(image);
+    canvas.remove(currImage);
     image.setCoords();
     for (const o of objects) {
       if (o != image) {
@@ -1620,6 +1625,8 @@ export default class ElementManager {
 
     this.canvasWrapper.style.left = leftOffset + 'px';
     this.canvasWrapper.style.top = topOffset + 'px';
+
+    this.imageEditor!.setBackgroundImage(image);
 
     this.fixComponentsPosition();
     this.imageEditor!.resetGlobalScale();
