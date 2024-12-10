@@ -588,7 +588,7 @@ export default class ElementManager {
       const canvas = imageEditor.getCanvas();
       canvas.discardActiveObject();
       canvas.renderAll();
-      imageEditor.confirm(this.downloadAreaImage());
+      imageEditor.confirm(this.captureAreaImage());
       this.destory();
     }
 
@@ -1634,7 +1634,7 @@ export default class ElementManager {
     history.clearStack();
   }
 
-  downloadAreaImage() {
+  captureAreaImage() {
     const width = pixelToNumber(this.canvasWrapper.style.width);
     const height = pixelToNumber(this.canvasWrapper.style.height);
     const left = (-1) * pixelToNumber(this.fabricWrapperEl!.style.left)
