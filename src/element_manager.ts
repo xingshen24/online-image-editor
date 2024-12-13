@@ -1188,8 +1188,11 @@ export default class ElementManager {
     this.canvasWrapper.style.width = newWrapperWidth + 'px';
     this.canvasWrapper.style.height = newWrapperHeight + 'px';
 
-    this.canvasWrapper.style.top = wrapperTop - extendTop + 'px';
-    this.canvasWrapper.style.left = wrapperLeft - extendLeft + 'px';
+    const cwTop = wrapperTop - extendTop > 0 ? wrapperTop - extendTop : 0;
+    const cwLeft = wrapperLeft - extendLeft > 0 ? wrapperLeft - extendLeft : 0;
+
+    this.canvasWrapper.style.top = cwTop + 'px';
+    this.canvasWrapper.style.left = cwLeft + 'px';
 
     let newLeft = 0, newTop = 0;
     let offsetX = 0, offsetY = 0;

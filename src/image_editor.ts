@@ -306,7 +306,7 @@ export default class ImageEditor {
       top: start.y * dpr,
       width: width * dpr,
       height: height * dpr,
-      quality: 0.92,
+      quality: 0.92, // 这个要考虑改成1
       multiplier: 1
     });
 
