@@ -152,16 +152,12 @@
 
     function downloadImage() {
       const image = imageDisplay.src;
-      if (image.startsWith('data:')) {
-        const a = document.createElement('a');
-        a.href = image;
-        a.download = 'downloaded_image.png';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-      } else {
-        alert('下载图片功能待实现');
-      }
+      const a = document.createElement('a');
+      a.href = image;
+      a.download = 'downloaded_image.png';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
     }
 
     document.getElementById('editBtn').addEventListener('click', editImage);
