@@ -1,20 +1,21 @@
 <!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Vite App</title>
-    <script type="module" crossorigin src="./assets/index-DYJfDp9m.js"></script>
-  </head>
+<html>
+
+<head>
+  <script type="module">
+    import { ImageEditorHelper } from "/online-image-editor-es.js"
+    ImageEditorHelper.createImageEditor('/assets/basic.jpg');
+  </script>
+
   <style>
-    html,body{
+    * {
       margin: 0;
-      border: 0;
-      height: 100%;
+      padding: 0;
     }
   </style>
-  <body style="background-color: gainsboro;">
-    <div id="app"></div>
-  </body>
+</head>
+
+<body>
+</body>
+
 </html>
