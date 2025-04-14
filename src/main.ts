@@ -284,7 +284,6 @@ export class ImageEditorHelper {
       maxHeight = 0;
     }
 
-    maxHeight = maxWidth = 500;
     if (maxWidth > 0 && maxHeight > 0) {
       fts.push(new MaxWidthHeightResizer({
         maxWidth, maxHeight, scaleX: 1, scaleY: 1
@@ -422,5 +421,7 @@ ImageEditorHelper.currentImageEditor = await ImageEditorHelper.createImageEditor
     const img = document.createElement("img");
     img.src = url;
     document.body.append(img)
-  }
+  },
+  maxWidth: 1200,
+  maxHeight: 600
 });
