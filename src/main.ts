@@ -1,7 +1,21 @@
-import { Canvas, FabricImage, Point } from 'fabric';
+import { Canvas, FabricImage, Point, filters } from 'fabric';
 import ElementManager from './element_manager';
 import ImageEditor from './image_editor';
 import { FabricUtils } from './fabric_utils';
+import { MaxWidthHeightResizer } from './init/ResizerFilter';
+
+interface ImageEditorOptions {
+  imageUrl: string;
+  assetsPath: string;
+  confirm: (_imgBase64: string) => void;
+  cancel: () => void
+  parent: HTMLElement;
+  head: HTMLElement;
+  maxWidth: number;
+  maxHeight: number;
+}
+
+const NOP = () => { }
 
 export class ImageEditorHelper {
 
@@ -13,15 +27,23 @@ export class ImageEditorHelper {
 
   static CANVAS_DEFAULT_HEIGHT = 100;
 
-  static async createImageEditor(imageUrl: string
-    , assetsPath = '.'
-    , confirm = (_imgBase64: string) => { }
-    , cancel = () => { }
-    , parent: HTMLElement = document.body
-    , head: HTMLElement = document.head) {
+  static async createImageEditor(options: Partial<ImageEditorOptions>) {
+
+    const parent = options.parent ?? document.body;
+    const head = options.head ?? document.head;
+    const imageUrl = options.imageUrl;
+    if (!imageUrl) {
+      throw new Error("图片的url不可以为空");
+    }
+    const assetsPath = options.assetsPath ?? './'
+    const confirm = options.confirm ?? NOP;
+    const cancel = options.cancel ?? NOP;
+    const maxHeight = options.maxHeight ?? 0;
+    const maxWidth = options.maxWidth ?? 0;
+
     const elements = this.createElement(parent, assetsPath)
     const eleManager = new ElementManager(elements, parent, head);
-    const canvas = await this.initCanvas(elements.canvas, imageUrl);
+    const canvas = await this.initCanvas(elements.canvas, imageUrl, maxHeight, maxWidth);
     const image = canvas.getObjects()[0];
     if (!(image instanceof FabricImage)) {
       throw new Error("unable to load background image");
@@ -246,7 +268,7 @@ export class ImageEditorHelper {
     return menu;
   }
 
-  private static async initCanvas(dom: HTMLCanvasElement, imageUrl: string): Promise<Canvas> {
+  private static async initCanvas(dom: HTMLCanvasElement, imageUrl: string, maxHeight: number, maxWidth: number): Promise<Canvas> {
 
     // 随便给个默认值，后面初始化的时候改掉
     const canvas = new Canvas(dom, {
@@ -254,7 +276,40 @@ export class ImageEditorHelper {
       preserveObjectStacking: true
     })
 
-    await FabricImage.fromURL(imageUrl, { crossOrigin: 'anonymous' }).then(img => {
+    const fts: filters.BaseFilter<any, any>[] = []
+    if (maxWidth == null) {
+      maxWidth = 0;
+    }
+    if (maxHeight == null) {
+      maxHeight = 0;
+    }
+
+    maxHeight = maxWidth = 500;
+    if (maxWidth > 0 && maxHeight > 0) {
+      fts.push(new MaxWidthHeightResizer({
+        maxWidth, maxHeight, scaleX: 1, scaleY: 1
+      }))
+    }
+
+
+    await FabricImage.fromURL(imageUrl, { crossOrigin: 'anonymous' }, { filters: fts }).then(img => {
+      if (maxHeight && maxWidth) {
+        const originalWidth = img.width;
+        const originalHeight = img.height;
+
+
+        // 计算缩放比例（保持宽高比）
+        const scaleFactor = Math.max(
+          originalWidth / maxWidth,
+          originalHeight / maxHeight
+        );
+
+        if (scaleFactor > 1) {
+          img.width = img.width / scaleFactor;
+          img.height = img.height / scaleFactor;
+          img.applyResizeFilters()
+        }
+      }
       canvas.backgroundColor = '#FFF';
       img.evented = false;
       img.selectable = false;
@@ -270,6 +325,7 @@ export class ImageEditorHelper {
 
     return canvas;
   }
+
 
   static resizeCanvas(fbCanvas: Canvas, manager: ElementManager, width: number, height: number) {
     const dpr = this.dpr;
@@ -338,7 +394,7 @@ export class ImageEditorHelper {
     format(northWestResizer);
     format(westResizer);
     format(southWestResizer);
-    format(southResizer);;
+    format(southResizer);
     format(southEastResizer);
     format(eastResizer);
     format(northEastResizer);
@@ -359,8 +415,12 @@ export class ImageEditorHelper {
   }
 }
 
-// ImageEditorHelper.currentImageEditor = await ImageEditorHelper.createImageEditor('./assets/basic.jpg', '.', (url: string) => {
-//   const img = document.createElement("img");
-//   img.src = url;
-//   document.body.append(img)
-// });
+ImageEditorHelper.currentImageEditor = await ImageEditorHelper.createImageEditor({
+  imageUrl: './assets/basic.jpg',
+  assetsPath: '.',
+  confirm: (url: string) => {
+    const img = document.createElement("img");
+    img.src = url;
+    document.body.append(img)
+  }
+});

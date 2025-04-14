@@ -33,6 +33,4 @@ export class ImageEditorShortcutManager {
     document.removeEventListener('keydown', this.keyboardEventHandler);
   }
 
-
-
 }

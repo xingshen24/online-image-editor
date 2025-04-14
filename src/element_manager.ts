@@ -1159,10 +1159,10 @@ export default class ElementManager {
     const wrapperTop = pixelToNumber(this.canvasWrapper.style.top)
     const wrapperLeft = pixelToNumber(this.canvasWrapper.style.left)
 
-    let maxXExtend = Math.max(leftExtend, rightExtend);
-    let maxYExtend = Math.max(topExtend, bottomExtend);
-    let minXExtend = Math.min(leftExtend, rightExtend);
-    let minYExtend = Math.min(topExtend, bottomExtend);
+    let maxXExtend = Number(Math.max(leftExtend, rightExtend).toFixed(2));
+    let maxYExtend = Number(Math.max(topExtend, bottomExtend).toFixed(2));
+    let minXExtend = Number(Math.min(leftExtend, rightExtend).toFixed(2));
+    let minYExtend = Number(Math.min(topExtend, bottomExtend).toFixed(2));
 
     let xExtend = 0, yExtend = 0;
     if (maxXExtend >= 0 && maxXExtend !== minXExtend) {
